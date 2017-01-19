@@ -30,7 +30,7 @@ impl<R: BufRead, W: Write> Shell<R, W> {
     }
 
     fn print_prompt(&mut self) {
-        self.output.write(self.prompt.as_bytes());
+        self.output.write_all(self.prompt.as_bytes());
     }
 
     fn read_line(&mut self) -> String {
