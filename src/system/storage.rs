@@ -13,6 +13,12 @@ impl FileSystem {
         FileSystem { mount_path: mount_path.to_string() }
     }
 
+    pub fn list_files(&self) -> String {
+        let paths = fs::read_dir(&self.mount_path).unwrap();
+        paths.map(|path| format!("{}", path.unwrap().file_name().to_str().unwrap()))
+            .fold(String::new(), |acc, file_name| acc + &file_name)
+    }
+
     pub fn open(&self, file_name: &str) -> io::Result<fs::File> {
         let root = self.mount_path.to_string();
         let file_path = root + file_name;
@@ -43,8 +49,7 @@ impl Iterator for Instructions {
 
     fn next(&mut self) -> Option<Instruction> {
         let inner = &mut self.inner;
-        let next4: Vec<u8> = inner
-            .take(4)
+        let next4: Vec<u8> = inner.take(4)
             .map(|result| {
                 let byte: u8 = match result {
                     Ok(b) => b,
