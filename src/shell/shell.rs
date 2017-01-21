@@ -1,8 +1,7 @@
-use std::io;
 use std::io::BufRead;
 use std::io::Write;
 
-use super::cmd::Command;
+use super::cmd::{CommandWithArgs, Command};
 use super::super::system::system::System;
 
 #[derive(Debug)]
@@ -26,21 +25,22 @@ impl<R: BufRead, W: Write> Shell<R, W> {
 
     pub fn start(&mut self) {
         loop {
-            let cmd = self.get_user_cmd();
-            match cmd {
+            let cmd_args = self.get_user_cmd();
+            let cmd = &cmd_args.cmd;
+            match *cmd {
                 Command::Exit => break,
                 _ => {
-                    let output = self.exec_cmd(cmd);
+                    let output = self.exec_cmd(&cmd_args);
                     self.write_ln(&output);
                 }
             }
         }
     }
 
-    fn exec_cmd(&mut self, cmd: Command) -> String {
+    fn exec_cmd(&mut self, command: &CommandWithArgs) -> String {
         use super::cmd::Command::*;
 
-        match cmd {
+        match command.cmd {
             ListFiles => self.system.list_files(),
             ProcessStatus => "Not yet implemented.".to_string(),
             Execute => "Not yet implemented.".to_string(),
@@ -50,28 +50,34 @@ impl<R: BufRead, W: Write> Shell<R, W> {
         }
     }
 
-    fn get_user_cmd(&mut self) -> Command {
+    fn get_user_cmd(&mut self) -> CommandWithArgs {
         let mut optional_cmd = None;
         while optional_cmd.is_none() {
             self.write_prompt();
-            let cmd_str = self.read_line();
-            let trimmed = cmd_str.trim();
-            optional_cmd = match Command::decode(trimmed) {
-                Some(cmd) => Some(cmd),
-                None => {
-                    self.write_ln(&format!("{}: command not found", trimmed));
-                    None
+            let line = self.read_line();
+            optional_cmd = if line.is_empty() {
+                None
+            } else {
+                match CommandWithArgs::from_string(&line) {
+                    Some(cmd) => Some(cmd),
+                    None => {
+                        // tODO: try enetering only a space
+                        let first_word = line.split_whitespace().next().unwrap();
+                        self.write_ln(&format!("{}: command not found", first_word));
+                        None
+                    }
                 }
             }
         }
         optional_cmd.unwrap()
     }
 
+    /// Returns a trimmed line read from the input.
     fn read_line(&mut self) -> String {
         let mut input_text = String::new();
         self.input
             .read_line(&mut input_text)
-            .expect("failed to read from stdin");
+            .expect("failed to read from input");
         let trimmed = input_text.trim();
         trimmed.to_string()
     }

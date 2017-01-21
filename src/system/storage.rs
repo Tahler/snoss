@@ -62,7 +62,7 @@ impl Iterator for Instructions {
         match next4.len() {
             4 => Some(Instruction::from_bytes(next4[0], next4[1], next4[2], next4[3])),
             n if n > 4 => panic!("Somehow ended up taking more than 4 bytes. Took {}.", n),
-            n /*if n < 4*/ => None,
+            _ /*if n < 4*/ => None,
         }
     }
 }
