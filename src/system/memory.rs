@@ -5,9 +5,7 @@ pub struct Memory {
 
 impl Memory {
     pub fn new(num_bytes: usize) -> Self {
-        Memory {
-            bytes: vec![0; num_bytes].into_boxed_slice()
-        }
+        Memory { bytes: vec![0; num_bytes].into_boxed_slice() }
     }
 
     pub fn load(&self, addr: usize) -> u8 {
