@@ -22,16 +22,26 @@ impl System {
         self.fs.list_files()
     }
 
-    // pub fn exec(&mut self, file: &str) {
-    //     self.load_program(file);
-    // }
+    pub fn exec(&mut self, file: &str) -> String {
+        self.load_program(file);
+        unimplemented!()
+    }
 
-    // /// Loads the specified file into memory.
-    // // TODO: perhaps returns the memory address?
-    // // TODO: perhaps sets the instruction_ptr?
-    // fn load_program(&mut self, file: &str) {
-    //     unimplemented!()
-    // }
+    /**
+     * Give it two pieces of memory:
+     * a space for the set of executable instructions (set the instr_ptr to the first instr in program),
+     * and a process control block.
+     * For this lab your PCB will just be the process id and the stack.
+     */
+    /// Loads the specified file into memory.
+    // TODO: perhaps returns the memory address?
+    // NOTES:
+    // this must put the bytes of the file into memory
+    // do not set the i_ptr
+    // maybe create and return process control block
+    fn load_program(&mut self, file: &str) {
+        unimplemented!()
+    }
 
     // fn exec(&mut self) {
     //     loop {
