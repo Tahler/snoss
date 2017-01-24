@@ -1,32 +1,25 @@
+use std::iter::Iterator;
+
+use byte_utils;
+
+pub const INSTRUCTION_SIZE: usize = 4;
+
 #[derive(Debug)]
 pub struct Instruction {
-    byte_0: u8,
-    byte_1: u8,
-    byte_2: u8,
-    byte_3: u8,
+    bytes: [u8; INSTRUCTION_SIZE],
 }
 
 impl Instruction {
-    pub fn from_bytes(byte_0: u8, byte_1: u8, byte_2: u8, byte_3: u8) -> Instruction {
-        Instruction {
-            byte_0: byte_0,
-            byte_1: byte_1,
-            byte_2: byte_2,
-            byte_3: byte_3,
-        }
+    pub fn from_bytes(bytes: [u8; INSTRUCTION_SIZE]) -> Instruction {
+        Instruction { bytes: bytes }
     }
 
     pub fn from_word(word: u32) -> Instruction {
-        Instruction {
-            byte_0: ((0xFF000000 & word) >> 24) as u8,
-            byte_1: ((0x00FF0000 & word) >> 16) as u8,
-            byte_2: ((0x0000FF00 & word) >> 08) as u8,
-            byte_3: ((0x000000FF & word) >> 00) as u8,
-        }
+        Instruction { bytes: byte_utils::u32_to_bytes(word) }
     }
 
     pub fn get_type(&self) -> Option<InstructionType> {
-        match self.byte_0 {
+        match self.bytes[0] {
             0x11 => Some(InstructionType::Load),
             0x12 => Some(InstructionType::LoadConstant),
             0x13 => Some(InstructionType::Store),
@@ -45,27 +38,23 @@ impl Instruction {
     }
 
     pub fn get_reg_1(&self) -> u8 {
-        self.byte_1
+        self.bytes[1]
     }
 
     pub fn get_reg_2(&self) -> u8 {
-        self.byte_2
+        self.bytes[2]
     }
 
     pub fn get_reg_3(&self) -> u8 {
-        self.byte_3
+        self.bytes[3]
     }
 
     pub fn get_literal_1(&self) -> u16 {
-        let byte_1_shifted = (self.byte_1 as u16) << 8;
-        let byte_2 = self.byte_2 as u16;
-        byte_1_shifted | byte_2
+        byte_utils::u16_from_bytes([self.bytes[1], self.bytes[2]])
     }
 
     pub fn get_literal_2(&self) -> u16 {
-        let byte_2_shifted = (self.byte_2 as u16) << 8;
-        let byte_3 = self.byte_3 as u16;
-        byte_2_shifted | byte_3
+        byte_utils::u16_from_bytes([self.bytes[2], self.bytes[3]])
     }
 }
 
@@ -92,4 +81,70 @@ pub enum InstructionType {
     CharRead = 0x42,
 
     Exit = 0xFF,
+}
+
+// pub struct Instructions {
+//     inner: Iterator<Item = u8>,
+// }
+
+// impl Iterator for Instructions {
+//     type Item = Instruction;
+
+//     fn next(&mut self) -> Option<Instruction> {
+//         let inner = &mut self.inner;
+//         let next4: Vec<u8> = inner.take(4)
+//             // .map(|next| {
+//             //     let byte: u8 = match next {
+//             //         Some(b) => b,
+//             //         e => panic!("{:?}", e), // TODO:
+//             //     };
+//             //     byte
+//             // })
+//             .collect();
+
+//         match next4.len() {
+//             4 => Some(Instruction::from_bytes(next4[0], next4[1], next4[2], next4[3])),
+//             n if n > 4 => panic!("Somehow ended up taking more than 4 bytes. Took {}.", n),
+//             _ /*if n < 4*/ => None,
+//         }
+//     }
+// }
+
+pub struct Instructions<'a> {
+    inner: &'a [u8],
+    ptr: usize,
+}
+
+impl<'a> Instructions<'a> {
+    pub fn new(inner: &'a [u8]) -> Instructions<'a> {
+        Instructions {
+            inner: inner,
+            ptr: 0,
+        }
+    }
+}
+
+impl<'a> Iterator for Instructions<'a> {
+    type Item = Instruction;
+
+    fn next(&mut self) -> Option<Instruction> {
+        use super::instruction::INSTRUCTION_SIZE;
+
+        // TODO: err handling (continued next() calls)
+        let instruction_start = self.ptr;
+        let instruction_end = self.ptr + INSTRUCTION_SIZE;
+        let next_bytes = &self.inner[instruction_start..instruction_end];
+
+        self.ptr = instruction_end;
+
+        match next_bytes.len() {
+            n if n == INSTRUCTION_SIZE => {
+                let mut arr = [0; INSTRUCTION_SIZE];
+                arr.clone_from_slice(next_bytes);
+                Some(Instruction::from_bytes(arr))
+            },
+            n if n > 4 => panic!("Somehow ended up taking more than 4 bytes. Took {}.", n),
+            _ /*if n < 4*/ => None,
+        }
+    }
 }
