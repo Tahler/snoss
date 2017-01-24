@@ -1,6 +1,9 @@
 use super::cpu::Cpu;
-use super::memory::Memory;
 use super::storage::FileSystem;
+use super::memory::{Memory, Block, InstructionBlock, ProcessControlBlock};
+use super::instruction::Instruction;
+
+const PCB_SIZE: usize = 1024;
 
 #[derive(Debug)]
 pub struct System {
@@ -22,46 +25,43 @@ impl System {
         self.fs.list_files()
     }
 
-    pub fn exec(&mut self, file: &str) -> String {
-        self.load_program(file);
+    pub fn exec(&mut self, file: &str) -> Result<String, String> {
+        // TODO: Only ram needs to be borrowed mutably for a short period
+        let instr_block = self.load_program(file)?;
+        let block = self.ram.allocate_block(1024)?;
+        let mut pcb = ProcessControlBlock::new(block, 1);
+        self.exec_program(&instr_block, &mut pcb);
         unimplemented!()
     }
 
-    /**
-     * Give it two pieces of memory:
-     * a space for the set of executable instructions (set the instr_ptr to the first instr in program),
-     * and a process control block.
-     * For this lab your PCB will just be the process id and the stack.
-     */
+    // TODO: set the i_ptr somewhere
     /// Loads the specified file into memory.
-    // TODO: perhaps returns the memory address?
-    // NOTES:
-    // this must put the bytes of the file into memory
-    // do not set the i_ptr
-    // maybe create and return process control block
-    fn load_program(&mut self, file: &str) {
-        unimplemented!()
+    fn load_program(&mut self, file: &str) -> Result<InstructionBlock, String> {
+        let file_bytes_iter = match self.fs.open_bytes(file) {
+            Ok(bytes) => bytes,
+            Err(err) => return Err(err.to_string()),
+        };
+
+        let file_bytes: Vec<u8> = file_bytes_iter.map(|result| result.unwrap()).collect();
+        let alloc_block = self.ram.allocate_block_with_bytes(&file_bytes[..])?;
+        InstructionBlock::new(alloc_block)
     }
 
-    // fn exec(&mut self) {
-    //     loop {
-    //         // Load instruction_ptr
-    //         let instruction_ptr = self.cpu.instruction_ptr;
-    //         // Increment instruction_ptr
-    //         self.cpu.instruction_ptr += 1;
-    //         // Load the instruction at
-    //         let instruction = self.ram.load(instruction_ptr);
-    //         // Execute instruction at instruction_ptr
-    //         self.exec_instruction(instruction);
-    //     }
-    // }
+    fn exec_program(&mut self, instruction_block: &InstructionBlock, pcb: &mut ProcessControlBlock) {
+        loop {
+            // Load instruction_ptr
+            let instruction_ptr = self.cpu.instruction_ptr;
+            // Increment instruction_ptr
+            self.cpu.instruction_ptr += 1;
+            let instruction = instruction_block.get_instruction_at(instruction_ptr);
+            // Execute instruction at instruction_ptr
+            self.exec_instruction(&instruction);
+        }
+    }
 
-    // fn exec_instruction(&mut self, instruction: u32) {
-    //     let byte0 = instruction >> 28; // TODO:
-    //     let byte1 = instruction >> 28:
-
-    //     unimplemented!();
-    // }
+    fn exec_instruction(&mut self, instruction: &Instruction) {
+        unimplemented!();
+    }
 
     // fn to_string(&self) -> String {
     //     let reg_slice: &[u32] = self.cpu.registers.as_ref();

@@ -1,7 +1,7 @@
 #[derive(Debug)]
 pub struct Cpu {
-    instruction_ptr: usize,
-    registers: Box<[u16]>,
+    pub instruction_ptr: usize,
+    pub registers: Box<[u16]>,
 }
 
 impl Cpu {

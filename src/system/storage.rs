@@ -1,3 +1,5 @@
+// TODO: err handling (no unwraps)
+
 use std::fs;
 use std::io;
 

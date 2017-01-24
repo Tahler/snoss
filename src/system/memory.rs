@@ -1,6 +1,6 @@
 use byte_utils;
 
-use super::instruction::Instructions;
+use super::instruction::{Instruction, Instructions};
 
 const STACK_PTR_LOC: usize = 0;
 const USABLE_MEM_START: usize = 4;
@@ -46,20 +46,27 @@ impl Memory {
         self.set_u16(STACK_PTR_LOC, val);
     }
 
-    /// Returns the address of the first byte of the allocated block.
-    pub fn allocate(&mut self, num_bytes: usize) -> Result<Block, String> {
-        let stack_ptr = self.get_stack_ptr();
-        let new_stack_ptr = stack_ptr + (num_bytes as u16);
-        let total_bytes = self.bytes.len() as u16;
-        if new_stack_ptr <= total_bytes {
-            self.set_stack_ptr(new_stack_ptr);
-            let block_start = stack_ptr as usize;
-            let block_end = new_stack_ptr as usize;
-            let allocated_bytes = &mut self.bytes[block_start..block_end];
-            Ok(Block::new(allocated_bytes))
-        } else {
-            Err(format!("Not enough memory to allocate {} bytes.", num_bytes))
-        }
+    pub fn allocate_block(&mut self, num_bytes: usize) -> Result<Block, String> {
+        // unsafe {
+            let stack_ptr = self.get_stack_ptr();
+            let new_stack_ptr = stack_ptr + (num_bytes as u16);
+            let total_bytes = self.bytes.len() as u16;
+            if new_stack_ptr <= total_bytes {
+                self.set_stack_ptr(new_stack_ptr);
+                let block_start = stack_ptr as usize;
+                let block_end = new_stack_ptr as usize;
+                let allocated_bytes = &mut self.bytes[block_start..block_end];
+                Ok(Block::new(allocated_bytes))
+            } else {
+                Err(format!("Not enough memory to allocate {} bytes.", num_bytes))
+            }
+        // }
+    }
+
+    pub fn allocate_block_with_bytes(&mut self, bytes: &[u8]) -> Result<Block, String> {
+        let block = self.allocate_block(bytes.len())?;
+        block.mem_slice.clone_from_slice(bytes);
+        Ok(block)
     }
 
     // TODO: deallocate - maybe include size of block right before?
@@ -106,18 +113,31 @@ pub struct ProcessControlBlock<'a> {
     block: Block<'a>,
 }
 
+const METADATA_SIZE: usize = 4;
+const PROCESS_ID_LOC: usize = 0;
+const STACK_SIZE_LOC: usize = 2;
+
 impl<'a> ProcessControlBlock<'a> {
-    pub fn new(block: Block<'a>) -> ProcessControlBlock<'a> {
+    pub fn new(mut block: Block<'a>, process_id: u16) -> ProcessControlBlock<'a> {
+        block.set_u16(PROCESS_ID_LOC, process_id);
+
+        let stack_size = (block.len() - METADATA_SIZE) as u16;
+        block.set_u16(STACK_SIZE_LOC, stack_size);
+
         ProcessControlBlock { block: block }
     }
 
-    // pub fn get_process_id(&self) -> u16 {
-    //     byte_utils::u16_from_bytes(self.mem_slice[0..2])
-    // }
+    pub fn get_process_id(&self) -> u16 {
+        let pid_bytes = [self.block.mem_slice[PROCESS_ID_LOC],
+                         self.block.mem_slice[PROCESS_ID_LOC + 1]];
+        byte_utils::u16_from_bytes(pid_bytes)
+    }
 
-    // pub fn get_stack_size(&self) -> u16 {
-    //     byte_utils::u16_from_bytes(self.mem_slice[2..4])
-    // }
+    pub fn get_stack_size(&self) -> u16 {
+        let stack_size_bytes = [self.block.mem_slice[STACK_SIZE_LOC],
+                                self.block.mem_slice[STACK_SIZE_LOC + 1]];
+        byte_utils::u16_from_bytes(stack_size_bytes)
+    }
 }
 
 #[derive(Debug)]
@@ -141,5 +161,12 @@ impl<'a> InstructionBlock<'a> {
     pub fn get_instructions(&self) -> Instructions {
         let bytes = &self.block.mem_slice;
         Instructions::new(bytes)
+    }
+
+    pub fn get_instruction_at(&self, addr: usize) -> Instruction {
+        use super::instruction::INSTRUCTION_SIZE;
+
+        let bytes = &self.block.mem_slice[addr..addr + INSTRUCTION_SIZE];
+        Instruction::from_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
     }
 }

@@ -19,7 +19,7 @@ impl CommandWithArgs {
                         args: args,
                     };
                     Some(cmd_args)
-                },
+                }
                 None => None,
             }
         }

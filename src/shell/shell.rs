@@ -23,33 +23,33 @@ impl<R: BufRead, W: Write> Shell<R, W> {
         }
     }
 
-    pub fn start(&mut self) {
+    pub fn start(&mut self) -> Result<(), String> {
         loop {
             let cmd_args = self.get_user_cmd();
             let cmd = &cmd_args.cmd;
             match *cmd {
-                Command::Exit => break,
+                Command::Exit => return Ok(()),
                 _ => {
-                    let output = self.exec_cmd(&cmd_args);
+                    let output = self.exec_cmd(&cmd_args)?;
                     self.write_ln(&output);
                 }
             }
         }
     }
 
-    fn exec_cmd(&mut self, command: &CommandWithArgs) -> String {
+    fn exec_cmd(&mut self, command: &CommandWithArgs) -> Result<String, String> {
         use super::cmd::Command::*;
 
         match command.cmd {
-            ListFiles => self.system.list_files(),
-            ProcessStatus => "Not yet implemented.".to_string(),
+            ListFiles => Ok(self.system.list_files()),
+            ProcessStatus => Ok("Not yet implemented.".to_string()),
             Execute => {
                 // TODO: err handling
                 self.system.exec(&command.args[0])
-            },
-            ExecuteWithInfo => "Not yet implemented.".to_string(),
-            Kill => "Not yet implemented.".to_string(),
-            Exit => "Bye!".to_string(),
+            }
+            ExecuteWithInfo => Ok("Not yet implemented.".to_string()),
+            Kill => Ok("Not yet implemented.".to_string()),
+            Exit => Ok("Bye!".to_string()),
         }
     }
 
