@@ -64,7 +64,6 @@ impl<R: BufRead, W: Write> Shell<R, W> {
                 match CommandWithArgs::from_string(&line) {
                     Some(cmd) => Some(cmd),
                     None => {
-                        // tODO: try enetering only a space
                         let first_word = line.split_whitespace().next().unwrap();
                         self.write_ln(&format!("{}: command not found", first_word));
                         None
