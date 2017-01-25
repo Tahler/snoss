@@ -5,8 +5,9 @@
 extern crate enum_primitive;
 
 mod byte_utils;
-mod system;
+mod io_utils;
 mod shell;
+mod system;
 
 use std::io;
 

@@ -43,10 +43,7 @@ impl<R: BufRead, W: Write> Shell<R, W> {
         match command.cmd {
             ListFiles => Ok(self.system.list_files()),
             ProcessStatus => Ok("Not yet implemented.".to_string()),
-            Execute => {
-                // TODO: err handling
-                self.system.exec(&command.args[0])
-            }
+            Execute => self.system.exec(&command.args[0]),
             ExecuteWithInfo => Ok("Not yet implemented.".to_string()),
             Kill => Ok("Not yet implemented.".to_string()),
             Exit => Ok("Bye!".to_string()),

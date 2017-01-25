@@ -58,62 +58,128 @@ impl System {
 
         let mut available_mem = &mut self.ram.bytes[instr_blk_start..];
 
-        // Create instr_block
+        // Create instruction block
         // /////////////////////////////////////////////////////////////////////////////////////////
         // TODO: maybe split into functions through the split
         let (mut instr_blk_alloc, mut available_mem) = available_mem.split_at_mut(instr_blk_start);
         instr_blk_alloc[instr_blk_start..instr_blk_end].clone_from_slice(&file_bytes[..]);
-        let instr_block = InstructionBlock::new(&instr_blk_alloc[instr_blk_start..instr_blk_end])?;
+        let instr_blk = InstructionBlock::new(&instr_blk_alloc[instr_blk_start..instr_blk_end])?;
 
-        // Create proc_contr_blk
+        // Create process control block
         // /////////////////////////////////////////////////////////////////////////////////////////
-        let (mut proc_contr_blk_alloc, mut available_mem) =
-            available_mem.split_at_mut(proc_contr_blk_start);
+        let (mut proc_contr_blk_alloc, _) = available_mem.split_at_mut(proc_contr_blk_start);
 
         let mut pcb = ProcessControlBlock::new(proc_contr_blk_alloc, 1, instr_blk_start as u16)?;
-        // self.exec_program(&instr_block, &mut pcb);
+        let mut stack = pcb.get_stack_mut();
 
-        unimplemented!()
-    }
+        // Execute code
+        // /////////////////////////////////////////////////////////////////////////////////////////
+        let mut output = String::new();
+        let mut running = true;
+        while running {
+            use super::instruction::InstructionType::*;
 
-    /// Loads the specified file into memory.
-    // fn load_program(&mut self, file: &str) -> Result<InstructionBlock, String> {
-    //     let file_bytes = self.fs.open_bytes_as_vec(file)?;
-    //     let num_bytes = file_bytes.len();
-
-    //     let stack_ptr = self.ram.get_stack_ptr();
-    //     let start = stack_ptr as usize;
-    //     let end = start + num_bytes;
-
-    //     let new_stack_ptr = end as u16;
-    //     self.ram.set_stack_ptr(new_stack_ptr);
-
-    //     let bytes = &mut self.ram.bytes;
-    //     let mut available_mem = &mut bytes[start..];
-    //     let (mut instr_blk_alloc, _) = available_mem.split_at_mut(start);
-    //     instr_blk_alloc[start..end].clone_from_slice(&file_bytes[..]);
-    //     let instr_block = InstructionBlock::new(&instr_blk_alloc[start..end])?;
-
-    //     Ok(instr_block)
-    // }
-
-    fn exec_program(&mut self,
-                    instr_blk: &InstructionBlock,
-                    proc_contr_blk: &mut ProcessControlBlock) {
-        loop {
             // Load instruction_ptr
             let instruction_ptr = self.cpu.instruction_ptr;
             // Increment instruction_ptr
             self.cpu.instruction_ptr += 1;
-            let instr = instr_blk.get_instruction_at(instruction_ptr);
+            let instr: Instruction = instr_blk.get_instruction_at(instruction_ptr);
             // Execute instruction at instruction_ptr
-            self.exec_instr(&instr);
+            match instr.get_type() {
+                Load => {
+                    let dest_reg = instr.get_reg_1() as usize;
+                    let addr = instr.get_literal_2() as usize;
+                    let mut reg_slice = self.cpu.registers.as_mut();
+                    reg_slice[dest_reg] = byte_utils::get_u16_at(stack, addr);
+                }
+                LoadConstant => {
+                    let dest_reg = instr.get_reg_1() as usize;
+                    let constant = instr.get_literal_2();
+                    let mut reg_slice = self.cpu.registers.as_mut();
+                    reg_slice[dest_reg] = constant;
+                }
+                Store => {
+                    let addr = instr.get_literal_1() as usize;
+                    let src_reg = instr.get_reg_3() as usize;
+                    let reg_slice = self.cpu.registers.as_mut();
+                    byte_utils::set_u16_at(stack, addr, reg_slice[src_reg]);
+                }
+                Add => {
+                    let src_reg_a = instr.get_reg_1() as usize;
+                    let src_reg_b = instr.get_reg_2() as usize;
+                    let dest_reg = instr.get_reg_3() as usize;
+                    let mut reg_slice = self.cpu.registers.as_mut();
+                    reg_slice[dest_reg] = reg_slice[src_reg_a] + reg_slice[src_reg_b];
+                }
+                Subtract => {
+                    let src_reg_a = instr.get_reg_1() as usize;
+                    let src_reg_b = instr.get_reg_2() as usize;
+                    let dest_reg = instr.get_reg_3() as usize;
+                    let mut reg_slice = self.cpu.registers.as_mut();
+                    reg_slice[dest_reg] = reg_slice[src_reg_a] - reg_slice[src_reg_b];
+                }
+                Multiply => {
+                    let src_reg_a = instr.get_reg_1() as usize;
+                    let src_reg_b = instr.get_reg_2() as usize;
+                    let dest_reg = instr.get_reg_3() as usize;
+                    let mut reg_slice = self.cpu.registers.as_mut();
+                    reg_slice[dest_reg] = reg_slice[src_reg_a] * reg_slice[src_reg_b];
+                }
+                Divide => {
+                    let src_reg_a = instr.get_reg_1() as usize;
+                    let src_reg_b = instr.get_reg_2() as usize;
+                    let dest_reg = instr.get_reg_3() as usize;
+                    let mut reg_slice = self.cpu.registers.as_mut();
+                    reg_slice[dest_reg] = reg_slice[src_reg_a] / reg_slice[src_reg_b];
+                }
+                Equal => {
+                    let src_reg_a = instr.get_reg_1() as usize;
+                    let src_reg_b = instr.get_reg_2() as usize;
+                    let dest_reg = instr.get_reg_3() as usize;
+                    let mut reg_slice = self.cpu.registers.as_mut();
+                    let dest_val = if reg_slice[src_reg_a] == reg_slice[src_reg_b] {
+                        0x01
+                    } else {
+                        0x00
+                    };
+                    reg_slice[dest_reg] = dest_val;
+                }
+                Goto => {
+                    let addr = instr.get_literal_1() as usize;
+                    self.cpu.instruction_ptr = addr;
+                }
+                GotoIf => {
+                    let addr = instr.get_literal_1() as usize;
+                    let reg = instr.get_reg_2() as usize;
+                    let reg_slice = self.cpu.registers.as_ref();
+                    if reg_slice[reg] == 0 {
+                        self.cpu.instruction_ptr = addr;
+                    }
+                }
+                // TODO: use the R, W types in Shell
+                CharPrint => {
+                    let addr = instr.get_literal_1() as usize;
+                    let ascii_byte = stack[addr];
+                    let ascii_char = ascii_byte as char;
+                    output.push(ascii_char);
+                }
+                CharRead => {
+                    use super::super::io_utils;
+                    let addr = instr.get_literal_1() as usize;
+                    let read_byte = io_utils::read_byte_from_stdin();
+                    stack[addr] = read_byte;
+                }
+                Exit => running = false,
+            }
         }
+
+        Ok(output)
+        // TODO: unalloc mem
     }
 
-    fn exec_instr(&mut self, instr: &Instruction) {
-        unimplemented!();
-    }
+    // fn exec_instr(&mut self, instr: &Instruction) {
+    //     unimplemented!();
+    // }
 
     // fn to_string(&self) -> String {
     //     let reg_slice: &[u32] = self.cpu.registers.as_ref();
@@ -132,17 +198,17 @@ impl System {
 
     // fn sub(&mut self, src_reg_a: usize, src_reg_b: usize, dest_reg: usize) {
     //     let mut reg_slice = self.cpu.registers.as_mut();
-    //     reg_slice[dest_reg] = reg_slice[src_reg_a] - reg_slice[src_reg_b]
+    //     reg_slice[dest_reg] = reg_slice[src_reg_a] - reg_slice[src_reg_b];
     // }
 
     // fn mul(&mut self, src_reg_a: usize, src_reg_b: usize, dest_reg: usize) {
     //     let mut reg_slice = self.cpu.registers.as_mut();
-    //     reg_slice[dest_reg] = reg_slice[src_reg_a] * reg_slice[src_reg_b]
+    //     reg_slice[dest_reg] = reg_slice[src_reg_a] * reg_slice[src_reg_b];
     // }
 
     // fn div(&mut self, src_reg_a: usize, src_reg_b: usize, dest_reg: usize) {
     //     let mut reg_slice = self.cpu.registers.as_mut();
-    //     reg_slice[dest_reg] = reg_slice[src_reg_a] / reg_slice[src_reg_b]
+    //     reg_slice[dest_reg] = reg_slice[src_reg_a] / reg_slice[src_reg_b];
     // }
 
     // fn eq(&mut self, src_reg_a: usize, src_reg_b: usize, dest_reg: usize) {
@@ -152,7 +218,7 @@ impl System {
     //     } else {
     //         0x00
     //     };
-    //     reg_slice[dest_reg] = dest_val
+    //     reg_slice[dest_reg] = dest_val;
     // }
 
     // fn goto(&mut self, addr: u32) {

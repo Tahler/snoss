@@ -11,4 +11,9 @@ impl Cpu {
             registers: vec![0; num_registers].into_boxed_slice(),
         }
     }
+
+    // pub fn to_string(&self) -> String {
+    //     let reg_slice = &self.registers;
+    //     format!("{:?}", reg_slice)
+    // }
 }
