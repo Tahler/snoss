@@ -26,3 +26,13 @@ pub fn u16_to_bytes(val: u16) -> [u8; 2] {
     let low_byte = val as u8; // TODO: should truncate
     [high_byte, low_byte]
 }
+
+pub fn set_u16_at(bytes: &mut [u8], addr: usize, val: u16) {
+    let u16_bytes = u16_to_bytes(val);
+    bytes[addr..addr + 1].clone_from_slice(&u16_bytes);
+}
+
+pub fn get_u16_at(bytes: &[u8], addr: usize) -> u16 {
+    let u16_bytes = &bytes[addr..addr + 1];
+    u16_from_bytes([u16_bytes[0], u16_bytes[1]])
+}

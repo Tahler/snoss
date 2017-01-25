@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 #![allow(unused_must_use)]
 
+#[macro_use]
+extern crate enum_primitive;
+
 mod byte_utils;
 mod system;
 mod shell;
