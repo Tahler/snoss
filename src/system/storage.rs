@@ -26,10 +26,12 @@ impl FileSystem {
         Ok(file)
     }
 
-    pub fn open_bytes(&self, file_path: &str) -> io::Result<io::Bytes<fs::File>> {
+    pub fn open_bytes(&self, file_path: &str) -> Result<io::Bytes<fs::File>, String> {
         use std::io::Read;
 
-        let file = self.open(file_path)?;
-        Ok(file.bytes())
+        match self.open(file_path) {
+            Ok(file) => Ok(file.bytes()),
+            Err(err) => Err(err.to_string()),
+        }
     }
 }

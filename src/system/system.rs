@@ -1,6 +1,6 @@
 use super::cpu::Cpu;
 use super::storage::FileSystem;
-use super::memory::{Memory, Block, InstructionBlock, ProcessControlBlock};
+use super::memory::{Memory, InstructionBlock};
 use super::instruction::Instruction;
 
 const PCB_SIZE: usize = 1024;
@@ -27,37 +27,47 @@ impl System {
 
     pub fn exec(&mut self, file: &str) -> Result<String, String> {
         // TODO: Only ram needs to be borrowed mutably for a short period
+
         let instr_block = self.load_program(file)?;
-        let block = self.ram.allocate_block(1024)?;
-        let mut pcb = ProcessControlBlock::new(block, 1);
-        self.exec_program(&instr_block, &mut pcb);
+        // let mut ram = &mut self.ram;
+        // let block = ram.allocate_block(1024)?;
+        // let mut pcb = ProcessControlBlock::new(block, 1);
+        // self.exec_program(&instr_block, &mut pcb);
         unimplemented!()
     }
 
-    // TODO: set the i_ptr somewhere
     /// Loads the specified file into memory.
     fn load_program(&mut self, file: &str) -> Result<InstructionBlock, String> {
-        let file_bytes_iter = match self.fs.open_bytes(file) {
-            Ok(bytes) => bytes,
-            Err(err) => return Err(err.to_string()),
-        };
+        let file_bytes: Vec<u8> = self.fs.open_bytes(file)?
+            .map(|result| result.unwrap())
+            .collect();
+        let num_bytes = file_bytes.len();
 
-        let file_bytes: Vec<u8> = file_bytes_iter.map(|result| result.unwrap()).collect();
-        let alloc_block = self.ram.allocate_block_with_bytes(&file_bytes[..])?;
-        InstructionBlock::new(alloc_block)
-    }
-
-    fn exec_program(&mut self, instruction_block: &InstructionBlock, pcb: &mut ProcessControlBlock) {
-        loop {
-            // Load instruction_ptr
-            let instruction_ptr = self.cpu.instruction_ptr;
-            // Increment instruction_ptr
-            self.cpu.instruction_ptr += 1;
-            let instruction = instruction_block.get_instruction_at(instruction_ptr);
-            // Execute instruction at instruction_ptr
-            self.exec_instruction(&instruction);
+        let stack_ptr = self.ram.get_stack_ptr();
+        let start = stack_ptr as usize;
+        let end = start + num_bytes;
+        {
+            self.ram.bytes[start..end].clone_from_slice(&file_bytes[..]);
         }
+        {
+            let new_stack_ptr = end as u16;
+            self.ram.set_stack_ptr(new_stack_ptr);
+        }
+        let instr_block = InstructionBlock::new(&self.ram.bytes[start..end])?;
+        Ok(instr_block)
     }
+
+    // fn exec_program(&mut self, instruction_block: &InstructionBlock, pcb: &mut ProcessControlBlock) {
+    //     loop {
+    //         // Load instruction_ptr
+    //         let instruction_ptr = self.cpu.instruction_ptr;
+    //         // Increment instruction_ptr
+    //         self.cpu.instruction_ptr += 1;
+    //         let instruction = instruction_block.get_instruction_at(instruction_ptr);
+    //         // Execute instruction at instruction_ptr
+    //         self.exec_instruction(&instruction);
+    //     }
+    // }
 
     fn exec_instruction(&mut self, instruction: &Instruction) {
         unimplemented!();
