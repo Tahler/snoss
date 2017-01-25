@@ -38,9 +38,7 @@ impl System {
 
     /// Loads the specified file into memory.
     fn load_program(&mut self, file: &str) -> Result<InstructionBlock, String> {
-        let file_bytes: Vec<u8> = self.fs.open_bytes(file)?
-            .map(|result| result.unwrap())
-            .collect();
+        let file_bytes = self.fs.open_bytes_as_vec(file)?;
         let num_bytes = file_bytes.len();
 
         let stack_ptr = self.ram.get_stack_ptr();

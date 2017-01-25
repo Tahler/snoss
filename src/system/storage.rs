@@ -34,4 +34,15 @@ impl FileSystem {
             Err(err) => Err(err.to_string()),
         }
     }
+
+    pub fn open_bytes_as_vec(&self, file_path: &str) -> Result<Vec<u8>, String> {
+        let mut bytes_iter = self.open_bytes(file_path)?;
+        // TODO: does .any() consume it?
+        if bytes_iter.any(|result| result.is_err()) {
+            Err("BAD".to_string())
+        } else {
+            Ok(bytes_iter.map(|result| result.unwrap())
+                .collect())
+        }
+    }
 }
