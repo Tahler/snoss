@@ -1,6 +1,6 @@
 use byte_utils;
 
-use super::instruction::{Instruction, Instructions, INSTRUCTION_SIZE};
+use super::instruction::{Instruction, INSTRUCTION_SIZE};
 
 const STACK_PTR_LOC: usize = 0;
 const USABLE_MEM_START: usize = 4;

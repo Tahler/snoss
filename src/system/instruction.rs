@@ -1,5 +1,3 @@
-use std::iter::Iterator;
-
 use byte_utils;
 
 pub const INSTRUCTION_SIZE: usize = 4;
@@ -81,70 +79,4 @@ pub enum InstructionType {
     CharRead = 0x42,
 
     Exit = 0xFF,
-}
-
-// pub struct Instructions {
-//     inner: Iterator<Item = u8>,
-// }
-
-// impl Iterator for Instructions {
-//     type Item = Instruction;
-
-//     fn next(&mut self) -> Option<Instruction> {
-//         let inner = &mut self.inner;
-//         let next4: Vec<u8> = inner.take(4)
-//             // .map(|next| {
-//             //     let byte: u8 = match next {
-//             //         Some(b) => b,
-//             //         e => panic!("{:?}", e), // TODO:
-//             //     };
-//             //     byte
-//             // })
-//             .collect();
-
-//         match next4.len() {
-//             4 => Some(Instruction::from_bytes(next4[0], next4[1], next4[2], next4[3])),
-//             n if n > 4 => panic!("Somehow ended up taking more than 4 bytes. Took {}.", n),
-//             _ /*if n < 4*/ => None,
-//         }
-//     }
-// }
-
-pub struct Instructions<'a> {
-    inner: &'a [u8],
-    ptr: usize,
-}
-
-impl<'a> Instructions<'a> {
-    pub fn new(inner: &'a [u8]) -> Instructions<'a> {
-        Instructions {
-            inner: inner,
-            ptr: 0,
-        }
-    }
-}
-
-impl<'a> Iterator for Instructions<'a> {
-    type Item = Instruction;
-
-    fn next(&mut self) -> Option<Instruction> {
-        use super::instruction::INSTRUCTION_SIZE;
-
-        // TODO: err handling (continued next() calls)
-        let instruction_start = self.ptr;
-        let instruction_end = self.ptr + INSTRUCTION_SIZE;
-        let next_bytes = &self.inner[instruction_start..instruction_end];
-
-        self.ptr = instruction_end;
-
-        match next_bytes.len() {
-            n if n == INSTRUCTION_SIZE => {
-                let mut arr = [0; INSTRUCTION_SIZE];
-                arr.clone_from_slice(next_bytes);
-                Some(Instruction::from_bytes(arr))
-            },
-            n if n > 4 => panic!("Somehow ended up taking more than 4 bytes. Took {}.", n),
-            _ /*if n < 4*/ => None,
-        }
-    }
 }
