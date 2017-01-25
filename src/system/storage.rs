@@ -16,7 +16,11 @@ impl FileSystem {
     pub fn list_files(&self) -> String {
         let paths = fs::read_dir(&self.mount_path).unwrap();
         paths.map(|path| format!("{}", path.unwrap().file_name().to_str().unwrap()))
-            .fold(String::new(), |acc, file_name| acc + &file_name)
+            .fold(String::new(), |mut acc, file_name| {
+                acc.push_str(&file_name);
+                acc.push('\t');
+                acc
+            })
     }
 
     pub fn open(&self, file_name: &str) -> io::Result<fs::File> {
