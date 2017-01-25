@@ -24,5 +24,8 @@ fn main() {
     let stdin = io::stdin();
     let stdout = io::stdout();
     let mut shell = Shell::new(system, prompt, stdin.lock(), stdout);
-    shell.start();
+    let result = shell.start();
+    if result.is_err() {
+        println!("Err: {:?}", result.err().unwrap());
+    }
 }
