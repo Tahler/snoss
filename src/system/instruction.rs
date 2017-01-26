@@ -18,7 +18,12 @@ impl Instruction {
 
     pub fn get_type(&self) -> InstructionType {
         use enum_primitive::FromPrimitive;
-        InstructionType::from_u8(self.bytes[0]).unwrap()
+
+        let instr_byte = self.bytes[0];
+        match InstructionType::from_u8(instr_byte) {
+            Some(instr_type) => instr_type,
+            None => panic!("Could not create InstructionType from {:?}.", instr_byte),
+        }
     }
 
     pub fn get_reg_1(&self) -> u8 {
