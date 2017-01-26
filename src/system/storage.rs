@@ -31,7 +31,6 @@ impl FileSystem {
     pub fn open(&self, file_name: &str) -> io::Result<fs::File> {
         let root = self.mount_path.to_string();
         let file_path = root + file_name;
-        println!("Opening {:?}", file_path);
         let file = fs::File::open(&file_path)?;
         Ok(file)
     }
@@ -48,11 +47,13 @@ impl FileSystem {
     pub fn open_bytes_as_vec(&self, file_name: &str) -> Result<Vec<u8>, String> {
         let mut bytes_iter = self.open_bytes(file_name)?;
         // TODO: does .any() consume it?
-        if bytes_iter.any(|result| result.is_err()) {
-            Err("BAD".to_string())
-        } else {
             Ok(bytes_iter.map(|result| result.unwrap())
                 .collect())
-        }
+        // if bytes_iter.any(|result| result.is_err()) {
+        //     Err("BAD".to_string())
+        // } else {
+        //     Ok(bytes_iter.map(|result| result.unwrap())
+        //         .collect())
+        // }
     }
 }
