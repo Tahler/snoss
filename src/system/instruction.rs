@@ -22,7 +22,7 @@ impl Instruction {
         let instr_byte = self.bytes[0];
         match InstructionType::from_u8(instr_byte) {
             Some(instr_type) => instr_type,
-            None => panic!("Could not create InstructionType from {:?}.", instr_byte),
+            None => panic!("Could not create InstructionType from {:?}", instr_byte),
         }
     }
 
