@@ -57,16 +57,9 @@ impl FileSystem {
     }
 
     pub fn open_bytes_as_vec(&self, file_name: &str) -> Result<Vec<u8>, String> {
-        let mut bytes_iter = self.open_bytes(file_name)?;
-        // TODO: does .any() consume it?
-            Ok(bytes_iter.map(|result| result.unwrap())
-                .collect())
-        // if bytes_iter.any(|result| result.is_err()) {
-        //     Err("BAD".to_string())
-        // } else {
-        //     Ok(bytes_iter.map(|result| result.unwrap())
-        //         .collect())
-        // }
+        Ok(self.open_bytes(file_name)?
+            .map(|result| result.unwrap())
+            .collect())
     }
 
     pub fn write_str_to_file(&self, file_name: &str, contents: &str) -> io::Result<()> {
