@@ -26,7 +26,7 @@ impl System {
         self.fs.list_files()
     }
 
-    pub fn exec(&mut self, file: &str) -> Result<String, String> {
+    pub fn exec(&mut self, file: &str, dump_each_time: bool) -> Result<String, String> {
         // Determine alloc sizes
         // /////////////////////////////////////////////////////////////////////////////////////////
         let file_bytes = self.fs.open_bytes_as_vec(file)?;
@@ -55,7 +55,7 @@ impl System {
         let (mut proc_contr_blk_alloc, _) = available_mem.split_at_mut(PCB_LEN);
 
         let mut pcb = ProcessControlBlock::new(proc_contr_blk_alloc, 1, instr_blk_start as u16)?;
-        self.cpu.instruction_ptr = pcb.get_instr_ptr() as usize;
+        self.cpu.instr_ptr = pcb.get_instr_ptr() as usize;
         let mut stack = pcb.get_stack_mut();
 
         // Execute code
@@ -66,12 +66,19 @@ impl System {
             use super::instruction::INSTRUCTION_SIZE;
             use super::instruction::InstructionType::*;
 
-            // Load instruction_ptr
-            let instruction_ptr = self.cpu.instruction_ptr;
-            // Increment instruction_ptr
-            self.cpu.instruction_ptr += INSTRUCTION_SIZE;
-            let instr: Instruction = instr_blk.get_instruction_at(instruction_ptr);
-            // Execute instruction at instruction_ptr
+            if dump_each_time {
+                print!("---\nCORE: {:?}\n", self.cpu);
+                print!("STACK: {:?}\n---\n", stack.iter().map(|byte| *byte as char).collect::<Vec<char>>());
+                // super::super::io_utils::wait_for_enter();
+            }
+
+            // Load instr_ptr
+            let instr_ptr = self.cpu.instr_ptr;
+            // Increment instr_ptr
+            self.cpu.instr_ptr += INSTRUCTION_SIZE;
+            let instr = instr_blk.get_instruction_at(instr_ptr);
+            println!("{:?} {:?}", instr.get_type(), instr);
+            // Execute instruction at instr_ptr
             match instr.get_type() {
                 Load => {
                     let dest_reg = instr.get_reg_1() as usize;
@@ -96,6 +103,7 @@ impl System {
                     let src_reg_b = instr.get_reg_2() as usize;
                     let dest_reg = instr.get_reg_3() as usize;
                     let mut reg_slice = self.cpu.registers.as_mut();
+                    println!("{} + {} = {}", reg_slice[src_reg_a], reg_slice[src_reg_b], reg_slice[src_reg_a] + reg_slice[src_reg_b]);
                     reg_slice[dest_reg] = reg_slice[src_reg_a] + reg_slice[src_reg_b];
                 }
                 Subtract => {
@@ -133,14 +141,20 @@ impl System {
                 }
                 Goto => {
                     let addr = instr.get_literal_1() as usize;
-                    self.cpu.instruction_ptr = addr;
+                    if addr % INSTRUCTION_SIZE != 0 {
+                        panic!("SEG_FAULT at setting IP to 0x{:x}", addr);
+                    }
+                    self.cpu.instr_ptr = addr;
                 }
                 GotoIf => {
                     let addr = instr.get_literal_1() as usize;
-                    let reg = instr.get_reg_2() as usize;
+                    if addr % INSTRUCTION_SIZE != 0 {
+                        panic!("SEG_FAULT at setting IP to 0x{:x}", addr);
+                    }
+                    let reg = instr.get_reg_3() as usize;
                     let reg_slice = self.cpu.registers.as_ref();
-                    if reg_slice[reg] == 0 {
-                        self.cpu.instruction_ptr = addr;
+                    if reg_slice[reg] != 0 {
+                        self.cpu.instr_ptr = addr;
                     }
                 }
                 // TODO: use the R, W types in Shell
@@ -149,6 +163,7 @@ impl System {
                     let ascii_byte = stack[addr];
                     let ascii_char = ascii_byte as char;
                     output.push(ascii_char);
+                    println!("CPRINT {:?}", ascii_char);
                 }
                 CharRead => {
                     use super::super::io_utils;
@@ -209,13 +224,13 @@ impl System {
     // }
 
     // fn goto(&mut self, addr: u32) {
-    //     self.cpu.instruction_ptr = addr;
+    //     self.cpu.instr_ptr = addr;
     // }
 
     // fn goto_if(&mut self, addr: usize, reg: usize) {
     //     let reg_slice = self.cpu.registers.as_ref();
     //     if reg_slice[reg] == 0 {
-    //         self.cpu.instruction_ptr = addr;
+    //         self.cpu.instr_ptr = addr;
     //     }
     // }
 }
