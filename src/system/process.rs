@@ -1,15 +1,15 @@
 use byte_utils;
 
-pub const PCB_METADATA_LEN: usize = 2 + 2 + 2 + 2 + 2;
-pub const STACK_LEN: usize = 64;
-pub const PCB_LEN: usize = PCB_METADATA_LEN + STACK_LEN;
-
 const PROC_ID_LOC: usize = 0;
 const PROC_STATUS_LOC: usize = 2;
 const INSTR_PTR_LOC: usize = 4;
 const INSTR_BLOCK_ADDR_LOC: usize = 6;
 const STACK_LEN_LOC: usize = 8;
 pub const STACK_LOC: usize = 10;
+
+pub const PCB_METADATA_LEN: usize = STACK_LOC;
+pub const STACK_LEN: usize = 64;
+pub const PCB_LEN: usize = PCB_METADATA_LEN + STACK_LEN;
 
 #[derive(Debug)]
 pub struct ProcessControlBlock<'a> {
@@ -33,12 +33,14 @@ impl<'a> ProcessControlBlock<'a> {
 
             Ok(block)
         } else {
-            Err("Mem slice is not of the correct size.".to_string())
+            Err(format!("Mem slice is not of the correct size. expected: {:?} actual: {:?}",
+                        PCB_LEN,
+                        mem_slice.len()))
         }
     }
 
     pub fn get_stack_mut(&mut self) -> &mut [u8] {
-        self.mem_slice
+        &mut self.mem_slice[PCB_METADATA_LEN..]
     }
 
     pub fn get_proc_id(&self) -> u16 {

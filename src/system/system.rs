@@ -1,16 +1,3 @@
-// RAM
-// 0x0000: stack_ptr
-// ...
-// pcb: proc_id
-// pcb: proc_status
-// pcb: instr_blk_ptr
-// pcb: instr_ptr
-// pcb: stack_len
-// pcb: [stack...]
-// ...
-// instr: [instr...]
-// ...
-
 use super::super::byte_utils;
 
 use super::cpu::Cpu;
@@ -43,31 +30,29 @@ impl System {
         // Determine alloc sizes
         // /////////////////////////////////////////////////////////////////////////////////////////
         let file_bytes = self.fs.open_bytes_as_vec(file)?;
-        let num_instr_bytes = file_bytes.len();
+        let instr_blk_len = file_bytes.len();
 
         let stack_ptr = self.ram.get_stack_ptr();
 
         let instr_blk_start = stack_ptr as usize;
-        let instr_blk_end = instr_blk_start + num_instr_bytes;
 
-        let proc_contr_blk_start = instr_blk_end;
-        let proc_contr_blk_end = proc_contr_blk_start + PCB_LEN;
+        let proc_contr_blk_start = instr_blk_start + instr_blk_len;
 
-        let new_stack_ptr = proc_contr_blk_end as u16;
-        self.ram.set_stack_ptr(new_stack_ptr);
+        let new_stack_ptr = proc_contr_blk_start + PCB_LEN;
+        self.ram.set_stack_ptr(new_stack_ptr as u16);
 
         let mut available_mem = &mut self.ram.bytes[instr_blk_start..];
 
         // Create instruction block
         // /////////////////////////////////////////////////////////////////////////////////////////
         // TODO: maybe split into functions through the split
-        let (mut instr_blk_alloc, mut available_mem) = available_mem.split_at_mut(instr_blk_start);
-        instr_blk_alloc[instr_blk_start..instr_blk_end].clone_from_slice(&file_bytes[..]);
-        let instr_blk = InstructionBlock::new(&instr_blk_alloc[instr_blk_start..instr_blk_end])?;
+        let (mut instr_blk_alloc, mut available_mem) = available_mem.split_at_mut(instr_blk_len);
+        instr_blk_alloc.clone_from_slice(&file_bytes);
+        let instr_blk = InstructionBlock::new(instr_blk_alloc)?;
 
         // Create process control block
         // /////////////////////////////////////////////////////////////////////////////////////////
-        let (mut proc_contr_blk_alloc, _) = available_mem.split_at_mut(proc_contr_blk_start);
+        let (mut proc_contr_blk_alloc, _) = available_mem.split_at_mut(PCB_LEN);
 
         let mut pcb = ProcessControlBlock::new(proc_contr_blk_alloc, 1, instr_blk_start as u16)?;
         let mut stack = pcb.get_stack_mut();
@@ -77,12 +62,13 @@ impl System {
         let mut output = String::new();
         let mut running = true;
         while running {
+            use super::instruction::INSTRUCTION_SIZE;
             use super::instruction::InstructionType::*;
 
             // Load instruction_ptr
             let instruction_ptr = self.cpu.instruction_ptr;
             // Increment instruction_ptr
-            self.cpu.instruction_ptr += 1;
+            self.cpu.instruction_ptr += INSTRUCTION_SIZE;
             let instr: Instruction = instr_blk.get_instruction_at(instruction_ptr);
             // Execute instruction at instruction_ptr
             match instr.get_type() {
