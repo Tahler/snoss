@@ -69,7 +69,6 @@ impl System {
             if dump_each_time {
                 print!("---\nCORE: {:?}\n", self.cpu);
                 print!("STACK: {:?}\n---\n", stack.iter().map(|byte| *byte as char).collect::<Vec<char>>());
-                // super::super::io_utils::wait_for_enter();
             }
 
             // Load instr_ptr
@@ -77,7 +76,6 @@ impl System {
             // Increment instr_ptr
             self.cpu.instr_ptr += INSTRUCTION_SIZE;
             let instr = instr_blk.get_instruction_at(instr_ptr);
-            println!("{:?} {:?}", instr.get_type(), instr);
             // Execute instruction at instr_ptr
             match instr.get_type() {
                 Load => {
@@ -103,7 +101,6 @@ impl System {
                     let src_reg_b = instr.get_reg_2() as usize;
                     let dest_reg = instr.get_reg_3() as usize;
                     let mut reg_slice = self.cpu.registers.as_mut();
-                    println!("{} + {} = {}", reg_slice[src_reg_a], reg_slice[src_reg_b], reg_slice[src_reg_a] + reg_slice[src_reg_b]);
                     reg_slice[dest_reg] = reg_slice[src_reg_a] + reg_slice[src_reg_b];
                 }
                 Subtract => {
@@ -163,7 +160,6 @@ impl System {
                     let ascii_byte = stack[addr];
                     let ascii_char = ascii_byte as char;
                     output.push(ascii_char);
-                    println!("CPRINT {:?}", ascii_char);
                 }
                 CharRead => {
                     use super::super::io_utils;
