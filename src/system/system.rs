@@ -55,6 +55,7 @@ impl System {
         let (mut proc_contr_blk_alloc, _) = available_mem.split_at_mut(PCB_LEN);
 
         let mut pcb = ProcessControlBlock::new(proc_contr_blk_alloc, 1, instr_blk_start as u16)?;
+        self.cpu.instruction_ptr = pcb.get_instr_ptr() as usize;
         let mut stack = pcb.get_stack_mut();
 
         // Execute code
