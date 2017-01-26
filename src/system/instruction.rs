@@ -76,13 +76,13 @@ pub enum InstructionType {
 
 #[derive(Debug)]
 pub struct InstructionBlock<'a> {
-    mem_slice: &'a [u8],
+    bytes: &'a [u8],
 }
 
 impl<'a> InstructionBlock<'a> {
-    pub fn new(mem_slice: &'a [u8]) -> Result<InstructionBlock<'a>, String> {
-        if mem_slice.len() % INSTRUCTION_SIZE == 0 {
-            let block = InstructionBlock { mem_slice: mem_slice };
+    pub fn new(bytes: &'a [u8]) -> Result<InstructionBlock<'a>, String> {
+        if bytes.len() % INSTRUCTION_SIZE == 0 {
+            let block = InstructionBlock { bytes: bytes };
             Ok(block)
         } else {
             Err(format!("An instruction block's size must be a multiple of the instruction size \
@@ -92,7 +92,7 @@ impl<'a> InstructionBlock<'a> {
     }
 
     pub fn get_instruction_at(&self, addr: usize) -> Instruction {
-        let bytes = &self.mem_slice[addr..addr + INSTRUCTION_SIZE];
+        let bytes = &self.bytes[addr..addr + INSTRUCTION_SIZE];
         Instruction::from_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
     }
 }
