@@ -1,11 +1,13 @@
 use byte_utils;
 
+use super::cpu::WORD_LEN;
+
 const PROC_ID_LOC: usize = 0;
-const PROC_STATUS_LOC: usize = 2;
-const INSTR_PTR_LOC: usize = 4;
-const INSTR_BLOCK_ADDR_LOC: usize = 6;
-const STACK_LEN_LOC: usize = 8;
-pub const STACK_LOC: usize = 10;
+const PROC_STATUS_LOC: usize = PROC_ID_LOC + WORD_LEN;
+const INSTR_PTR_LOC: usize = PROC_STATUS_LOC + WORD_LEN;
+const INSTR_BLOCK_ADDR_LOC: usize = INSTR_PTR_LOC + WORD_LEN;
+const STACK_LEN_LOC: usize = INSTR_BLOCK_ADDR_LOC + WORD_LEN;
+pub const STACK_LOC: usize = STACK_LEN_LOC + WORD_LEN;
 
 pub const PCB_METADATA_LEN: usize = STACK_LOC;
 pub const STACK_LEN: usize = 64;
@@ -87,15 +89,6 @@ impl<'a> ProcessControlBlock<'a> {
         byte_utils::set_u16_at(self.mem_slice, STACK_LEN_LOC, stack_len);
     }
 }
-
-// impl Debug for ProcessControlBlock {
-//     fn debug(&self) -> String {
-//         let proc_id = self.get_proc_id();
-//         let proc_status = self.get_proc_status();
-//         let instr_ptr = self.get_instr_ptr();
-//         format!("Process { proc_id: {}, proc_status: {}, instr_ptr: {} }", proc_id, proc_status, instr_ptr)
-//     }
-// }
 
 enum_from_primitive! {
 #[derive(Debug, PartialEq)]
