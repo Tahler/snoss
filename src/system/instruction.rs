@@ -1,14 +1,14 @@
-use byte_utils;
+use std::fmt;
+use byte_utils::{self, AccessResult};
 
-pub const INSTRUCTION_SIZE: usize = 4;
+pub const INSTRUCTION_LEN: usize = 4;
 
-#[derive(Debug)]
 pub struct Instruction {
-    bytes: [u8; INSTRUCTION_SIZE],
+    bytes: [u8; INSTRUCTION_LEN],
 }
 
 impl Instruction {
-    pub fn from_bytes(bytes: [u8; INSTRUCTION_SIZE]) -> Instruction {
+    pub fn from_bytes(bytes: [u8; INSTRUCTION_LEN]) -> Instruction {
         Instruction { bytes: bytes }
     }
 
@@ -47,6 +47,12 @@ impl Instruction {
     }
 }
 
+impl<'a> fmt::Debug for Instruction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Instruction: {{ type: {:?}, bytes: {:?} }}", self.get_type(), self.bytes)
+    }
+}
+
 enum_from_primitive! {
 #[derive(Debug, PartialEq)]
 pub enum InstructionType {
@@ -81,18 +87,28 @@ pub struct InstructionBlock<'a> {
 
 impl<'a> InstructionBlock<'a> {
     pub fn new(bytes: &'a [u8]) -> Result<InstructionBlock<'a>, String> {
-        if bytes.len() % INSTRUCTION_SIZE == 0 {
+        if bytes.len() % INSTRUCTION_LEN == 0 {
             let block = InstructionBlock { bytes: bytes };
             Ok(block)
         } else {
             Err(format!("An instruction block's size must be a multiple of the instruction size \
                          ({} bytes).",
-                        INSTRUCTION_SIZE))
+                        INSTRUCTION_LEN))
         }
     }
 
-    pub fn get_instruction_at(&self, addr: usize) -> Instruction {
-        let bytes = &self.bytes[addr..addr + INSTRUCTION_SIZE];
-        Instruction::from_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
+    pub fn get_instruction_at(&self, addr: usize) -> AccessResult<Instruction> {
+        if is_aligned(addr) {
+            let opt_bytes = byte_utils::get_slice(self.bytes, addr..addr + INSTRUCTION_LEN);
+            opt_bytes.map(|bytes| Instruction::from_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+            // let bytes = &self.bytes[addr..addr + INSTRUCTION_LEN];
+            // Instruction::from_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
+        } else {
+            Err(())
+        }
     }
+}
+
+fn is_aligned(addr: usize) -> bool {
+    byte_utils::is_aligned(addr, INSTRUCTION_LEN)
 }

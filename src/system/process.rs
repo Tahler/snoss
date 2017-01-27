@@ -1,3 +1,5 @@
+use std::fmt;
+
 use byte_utils;
 
 use super::cpu::WORD_LEN;
@@ -13,7 +15,6 @@ pub const PCB_METADATA_LEN: usize = STACK_LOC;
 pub const STACK_LEN: usize = 64;
 pub const PCB_LEN: usize = PCB_METADATA_LEN + STACK_LEN;
 
-#[derive(Debug)]
 pub struct ProcessControlBlock<'a> {
     bytes: &'a mut [u8],
 }
@@ -41,21 +42,25 @@ impl<'a> ProcessControlBlock<'a> {
         }
     }
 
+    pub fn get_stack(&self) -> &[u8] {
+        &self.bytes[PCB_METADATA_LEN..]
+    }
+
     pub fn get_stack_mut(&mut self) -> &mut [u8] {
         &mut self.bytes[PCB_METADATA_LEN..]
     }
 
     pub fn get_proc_id(&self) -> u16 {
-        byte_utils::get_u16_at(self.bytes, PROC_ID_LOC)
+        byte_utils::get_u16_at(self.bytes, PROC_ID_LOC).unwrap()
     }
 
     pub fn set_proc_id(&mut self, proc_id: u16) {
-        byte_utils::set_u16_at(self.bytes, PROC_ID_LOC, proc_id)
+        byte_utils::set_u16_at(self.bytes, PROC_ID_LOC, proc_id).unwrap()
     }
 
     pub fn get_proc_status(&self) -> ProcessStatus {
         use enum_primitive::FromPrimitive;
-        let proc_status_num = byte_utils::get_u16_at(self.bytes, PROC_STATUS_LOC);
+        let proc_status_num = byte_utils::get_u16_at(self.bytes, PROC_STATUS_LOC).unwrap();
         ProcessStatus::from_u16(proc_status_num).unwrap()
     }
 
@@ -65,7 +70,7 @@ impl<'a> ProcessControlBlock<'a> {
     }
 
     pub fn get_instr_ptr(&self) -> u16 {
-        byte_utils::get_u16_at(self.bytes, INSTR_PTR_LOC)
+        byte_utils::get_u16_at(self.bytes, INSTR_PTR_LOC).unwrap()
     }
 
     pub fn set_instr_ptr(&mut self, instr_ptr: u16) {
@@ -73,7 +78,7 @@ impl<'a> ProcessControlBlock<'a> {
     }
 
     pub fn get_instr_blk_addr(&self) -> u16 {
-        byte_utils::get_u16_at(self.bytes, INSTR_BLOCK_ADDR_LOC)
+        byte_utils::get_u16_at(self.bytes, INSTR_BLOCK_ADDR_LOC).unwrap()
     }
 
     fn set_instr_blk_addr(&mut self, instr_blk_addr: u16) {
@@ -87,6 +92,12 @@ impl<'a> ProcessControlBlock<'a> {
 
     fn set_stack_len(&mut self, stack_len: u16) {
         byte_utils::set_u16_at(self.bytes, STACK_LEN_LOC, stack_len);
+    }
+}
+
+impl<'a> fmt::Debug for ProcessControlBlock<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ProcessControlBlock: {{ proc_id: {:?}, proc_status: {:?}, stack: {:?} }}", self.get_proc_id(), self.get_proc_status(), self.get_stack())
     }
 }
 

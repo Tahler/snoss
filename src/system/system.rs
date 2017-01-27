@@ -3,8 +3,8 @@ use super::super::byte_utils;
 use super::cpu::Cpu;
 use super::storage::FileSystem;
 use super::memory::Memory;
-use super::instruction::{Instruction, InstructionBlock};
-use super::process::{PCB_LEN, ProcessControlBlock};
+use super::instruction::InstructionBlock;
+use super::process::ProcessControlBlock;
 
 #[derive(Debug)]
 pub struct System {
@@ -26,10 +26,15 @@ impl System {
         self.fs.list_files()
     }
 
-    pub fn exec(&mut self, file: &str, dump_each_time: bool) -> Result<String, String> {
+    pub fn exec(&mut self, file_name: &str, dump_each_time: bool) -> Result<String, String> {
+        use super::process::PCB_LEN;
+
         // Determine alloc sizes
         // /////////////////////////////////////////////////////////////////////////////////////////
-        let file_bytes = self.fs.open_bytes_as_vec(file)?;
+        let file_bytes = match self.fs.open_bytes_as_vec(file_name) {
+            Ok(vec) => Ok(vec),
+            Err(err) => Err(err.to_string()),
+        }?;
         let instr_blk_len = file_bytes.len();
 
         let stack_ptr = self.ram.get_stack_ptr();
@@ -56,124 +61,164 @@ impl System {
 
         let mut pcb = ProcessControlBlock::new(proc_contr_blk_alloc, 1, instr_blk_start as u16)?;
         self.cpu.instr_ptr = pcb.get_instr_ptr() as usize;
-        let mut stack = pcb.get_stack_mut();
 
         // Execute code
         // /////////////////////////////////////////////////////////////////////////////////////////
         let mut output = String::new();
         let mut running = true;
+        let mut last_result: Result<(), ()> = Ok(());
         while running {
-            use super::instruction::INSTRUCTION_SIZE;
+            use super::instruction::INSTRUCTION_LEN;
             use super::instruction::InstructionType::*;
 
             if dump_each_time {
-                print!("---\nCORE: {:?}\n", self.cpu);
-                print!("STACK: {:?}\n---\n", stack.iter().map(|byte| *byte as char).collect::<Vec<char>>());
+                println!("{}", get_core_dump_str(&instr_blk, &self.cpu, &pcb));
             }
 
             // Load instr_ptr
             let instr_ptr = self.cpu.instr_ptr;
             // Increment instr_ptr
-            self.cpu.instr_ptr += INSTRUCTION_SIZE;
-            let instr = instr_blk.get_instruction_at(instr_ptr);
-            // Execute instruction at instr_ptr
-            match instr.get_type() {
-                Load => {
-                    let dest_reg = instr.get_reg_1() as usize;
-                    let addr = instr.get_literal_2() as usize;
-                    let mut reg_slice = self.cpu.registers.as_mut();
-                    reg_slice[dest_reg] = byte_utils::get_u16_at(stack, addr);
-                }
-                LoadConstant => {
-                    let dest_reg = instr.get_reg_1() as usize;
-                    let constant = instr.get_literal_2();
-                    let mut reg_slice = self.cpu.registers.as_mut();
-                    reg_slice[dest_reg] = constant;
-                }
-                Store => {
-                    let addr = instr.get_literal_1() as usize;
-                    let src_reg = instr.get_reg_3() as usize;
-                    let reg_slice = self.cpu.registers.as_mut();
-                    byte_utils::set_u16_at(stack, addr, reg_slice[src_reg]);
-                }
-                Add => {
-                    let src_reg_a = instr.get_reg_1() as usize;
-                    let src_reg_b = instr.get_reg_2() as usize;
-                    let dest_reg = instr.get_reg_3() as usize;
-                    let mut reg_slice = self.cpu.registers.as_mut();
-                    reg_slice[dest_reg] = reg_slice[src_reg_a] + reg_slice[src_reg_b];
-                }
-                Subtract => {
-                    let src_reg_a = instr.get_reg_1() as usize;
-                    let src_reg_b = instr.get_reg_2() as usize;
-                    let dest_reg = instr.get_reg_3() as usize;
-                    let mut reg_slice = self.cpu.registers.as_mut();
-                    reg_slice[dest_reg] = reg_slice[src_reg_a] - reg_slice[src_reg_b];
-                }
-                Multiply => {
-                    let src_reg_a = instr.get_reg_1() as usize;
-                    let src_reg_b = instr.get_reg_2() as usize;
-                    let dest_reg = instr.get_reg_3() as usize;
-                    let mut reg_slice = self.cpu.registers.as_mut();
-                    reg_slice[dest_reg] = reg_slice[src_reg_a] * reg_slice[src_reg_b];
-                }
-                Divide => {
-                    let src_reg_a = instr.get_reg_1() as usize;
-                    let src_reg_b = instr.get_reg_2() as usize;
-                    let dest_reg = instr.get_reg_3() as usize;
-                    let mut reg_slice = self.cpu.registers.as_mut();
-                    reg_slice[dest_reg] = reg_slice[src_reg_a] / reg_slice[src_reg_b];
-                }
-                Equal => {
-                    let src_reg_a = instr.get_reg_1() as usize;
-                    let src_reg_b = instr.get_reg_2() as usize;
-                    let dest_reg = instr.get_reg_3() as usize;
-                    let mut reg_slice = self.cpu.registers.as_mut();
-                    let dest_val = if reg_slice[src_reg_a] == reg_slice[src_reg_b] {
-                        0x01
-                    } else {
-                        0x00
-                    };
-                    reg_slice[dest_reg] = dest_val;
-                }
-                Goto => {
-                    let addr = instr.get_literal_1() as usize;
-                    if addr % INSTRUCTION_SIZE != 0 {
-                        panic!("SEG_FAULT at setting IP to 0x{:x}", addr);
+            self.cpu.instr_ptr += INSTRUCTION_LEN;
+            last_result = if let Ok(instr) = instr_blk.get_instruction_at(instr_ptr) {
+                let mut stack = pcb.get_stack_mut();
+
+                // Execute instruction at instr_ptr
+                match instr.get_type() {
+                    Load => {
+                        let dest_reg = instr.get_reg_1() as usize;
+                        let addr = instr.get_literal_2() as usize;
+                        if let Ok(loaded_val) = byte_utils::get_u16_at(stack, addr) {
+                            self.cpu.set_reg(dest_reg, loaded_val)
+                        } else {
+                            Err(())
+                        }
                     }
-                    self.cpu.instr_ptr = addr;
-                }
-                GotoIf => {
-                    let addr = instr.get_literal_1() as usize;
-                    if addr % INSTRUCTION_SIZE != 0 {
-                        panic!("SEG_FAULT at setting IP to 0x{:x}", addr);
+                    LoadConstant => {
+                        let dest_reg = instr.get_reg_1() as usize;
+                        let constant = instr.get_literal_2();
+                        self.cpu.set_reg(dest_reg, constant)
                     }
-                    let reg = instr.get_reg_3() as usize;
-                    let reg_slice = self.cpu.registers.as_ref();
-                    if reg_slice[reg] != 0 {
-                        self.cpu.instr_ptr = addr;
+                    Store => {
+                        let addr = instr.get_literal_1() as usize;
+                        let src_reg = instr.get_reg_3() as usize;
+                        self.cpu
+                            .get_reg(src_reg)
+                            .and_then(|reg_val| byte_utils::set_u16_at(stack, addr, reg_val))
                     }
+                    Add => {
+                        let src_reg_a = instr.get_reg_1() as usize;
+                        let src_reg_b = instr.get_reg_2() as usize;
+                        let dest_reg = instr.get_reg_3() as usize;
+                        let res_a = self.cpu.get_reg(src_reg_a);
+                        let res_b = self.cpu.get_reg(src_reg_b);
+                        if let (Ok(a), Ok(b)) = (res_a, res_b) {
+                            self.cpu.set_reg(dest_reg, a + b)
+                        } else {
+                            Err(())
+                        }
+                    }
+                    Subtract => {
+                        let src_reg_a = instr.get_reg_1() as usize;
+                        let src_reg_b = instr.get_reg_2() as usize;
+                        let dest_reg = instr.get_reg_3() as usize;
+                        let res_a = self.cpu.get_reg(src_reg_a);
+                        let res_b = self.cpu.get_reg(src_reg_b);
+                        if let (Ok(a), Ok(b)) = (res_a, res_b) {
+                            self.cpu.set_reg(dest_reg, a - b)
+                        } else {
+                            Err(())
+                        }
+                    }
+                    Multiply => {
+                        let src_reg_a = instr.get_reg_1() as usize;
+                        let src_reg_b = instr.get_reg_2() as usize;
+                        let dest_reg = instr.get_reg_3() as usize;
+                        let res_a = self.cpu.get_reg(src_reg_a);
+                        let res_b = self.cpu.get_reg(src_reg_b);
+                        if let (Ok(a), Ok(b)) = (res_a, res_b) {
+                            self.cpu.set_reg(dest_reg, a * b)
+                        } else {
+                            Err(())
+                        }
+                    }
+                    Divide => {
+                        let src_reg_a = instr.get_reg_1() as usize;
+                        let src_reg_b = instr.get_reg_2() as usize;
+                        let dest_reg = instr.get_reg_3() as usize;
+                        let res_a = self.cpu.get_reg(src_reg_a);
+                        let res_b = self.cpu.get_reg(src_reg_b);
+                        if let (Ok(a), Ok(b)) = (res_a, res_b) {
+                            self.cpu.set_reg(dest_reg, a / b)
+                        } else {
+                            Err(())
+                        }
+                    }
+                    Equal => {
+                        let src_reg_a = instr.get_reg_1() as usize;
+                        let src_reg_b = instr.get_reg_2() as usize;
+                        let dest_reg = instr.get_reg_3() as usize;
+                        let res_a = self.cpu.get_reg(src_reg_a);
+                        let res_b = self.cpu.get_reg(src_reg_b);
+                        if let (Ok(a), Ok(b)) = (res_a, res_b) {
+                            let dest_val = if a == b { 0x01 } else { 0x00 };
+                            self.cpu.set_reg(dest_reg, dest_val)
+                        } else {
+                            Err(())
+                        }
+                    }
+                    Goto => {
+                        let addr = instr.get_literal_1() as usize;
+                        Ok(self.cpu.instr_ptr = addr)
+                    }
+                    GotoIf => {
+                        let reg = instr.get_reg_3() as usize;
+                        if let Ok(eq_val) = self.cpu.get_reg(reg) {
+                            if eq_val != 0 {
+                                let addr = instr.get_literal_1() as usize;
+                                self.cpu.instr_ptr = addr;
+                            }
+                            Ok(())
+                        } else {
+                            Err(())
+                        }
+                    }
+                    // TODO: use the R, W types in Shell
+                    CharPrint => {
+                        let addr = instr.get_literal_1() as usize;
+                        stack.get(addr)
+                            .map(|ascii_byte| *ascii_byte as char)
+                            .map(|ascii_char| output.push(ascii_char))
+                            .ok_or(())
+                    }
+                    CharRead => {
+                        use super::super::io_utils;
+                        let addr = instr.get_literal_1() as usize;
+                        let read_byte = io_utils::read_byte_from_stdin();
+                        stack.get_mut(addr)
+                            .map(|slot| *slot = read_byte)
+                            .ok_or(())
+                    }
+                    Exit => Ok(running = false),
                 }
-                // TODO: use the R, W types in Shell
-                CharPrint => {
-                    let addr = instr.get_literal_1() as usize;
-                    let ascii_byte = stack[addr];
-                    let ascii_char = ascii_byte as char;
-                    output.push(ascii_char);
-                }
-                CharRead => {
-                    use super::super::io_utils;
-                    let addr = instr.get_literal_1() as usize;
-                    let read_byte = io_utils::read_byte_from_stdin();
-                    stack[addr] = read_byte;
-                }
-                Exit => running = false,
+            } else {
+                Err(())
             }
         }
 
-        Ok(output)
-        // TODO: unalloc mem
+        // TODO: dealloc mem
+
+        match last_result {
+            Ok(_) => Ok(output),
+            Err(_) => {
+                // TODO: dump core to file
+                Err("Seg faulted".to_string())
+            }
+        }
     }
+
+    // fn core_dump_on_seg_fault() -> RetType {
+    //     unimplemented!();
+    // }
 
     // fn exec_instr(&mut self, instr: &Instruction) {
     //     unimplemented!();
@@ -229,4 +274,8 @@ impl System {
     //         self.cpu.instr_ptr = addr;
     //     }
     // }
+}
+
+fn get_core_dump_str(instr_blk: &InstructionBlock, cpu: &Cpu, pcb: &ProcessControlBlock) -> String {
+    format!("{:?}\n{:?}\n{:?}\n", instr_blk, cpu, pcb)
 }

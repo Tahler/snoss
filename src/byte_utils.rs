@@ -1,3 +1,24 @@
+use std::ops::Range;
+
+// TODO: could make the err type be descriptive
+pub type AccessResult<T> = Result<T, ()>;
+
+pub fn get_slice(bytes: &[u8], range: Range<usize>) -> AccessResult<&[u8]> {
+    if range.start > range.end || range.end > bytes.len() {
+        Err(())
+    } else {
+        Ok(&bytes[range])
+    }
+}
+
+pub fn get_slice_mut(bytes: &mut [u8], range: Range<usize>) -> AccessResult<&mut [u8]> {
+    if range.start > range.end || range.end > bytes.len() {
+        Err(())
+    } else {
+        Ok(&mut bytes[range])
+    }
+}
+
 pub fn u32_from_bytes(bytes: [u8; 4]) -> u32 {
     let byte_0 = (bytes[0] as u32) << 24;
     let byte_1 = (bytes[1] as u32) << 16;
@@ -27,12 +48,19 @@ pub fn u16_to_bytes(val: u16) -> [u8; 2] {
     [high_byte, low_byte]
 }
 
-pub fn set_u16_at(bytes: &mut [u8], addr: usize, val: u16) {
+pub fn set_u16_at(bytes: &mut [u8], addr: usize, val: u16) -> AccessResult<()> {
     let u16_bytes = u16_to_bytes(val);
-    bytes[addr..addr + 2].clone_from_slice(&u16_bytes);
+    if let Ok(slice) = get_slice_mut(bytes, addr..addr + 2) {
+        Ok(slice.clone_from_slice(&u16_bytes))
+    } else {
+        Err(())
+    }
 }
 
-pub fn get_u16_at(bytes: &[u8], addr: usize) -> u16 {
-    let u16_bytes = &bytes[addr..addr + 2];
-    u16_from_bytes([u16_bytes[0], u16_bytes[1]])
+pub fn get_u16_at(bytes: &[u8], addr: usize) -> AccessResult<u16> {
+    get_slice(bytes, addr..addr + 2).map(|u16_bytes| u16_from_bytes([u16_bytes[0], u16_bytes[1]]))
+}
+
+pub fn is_aligned(addr: usize, alignment: usize) -> bool {
+    addr % alignment == 0
 }

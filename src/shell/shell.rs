@@ -7,7 +7,7 @@ use super::super::system::system::System;
 #[derive(Debug)]
 pub struct Shell<R: BufRead, W: Write> {
     system: System,
-    // TODO: make it a `&'static str` or `&'a str`?
+    // TODO: make it a `&'static str` or `&'a str`? or AsRef<String>
     prompt: String,
     input: R,
     output: W,
