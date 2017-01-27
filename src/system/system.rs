@@ -6,6 +6,8 @@ use super::memory::Memory;
 use super::instruction::InstructionBlock;
 use super::process::ProcessControlBlock;
 
+const CORE_DUMP_FILE_NAME: &'static str = "coredump";
+
 #[derive(Debug)]
 pub struct System {
     cpu: Cpu,
@@ -214,7 +216,8 @@ impl System {
         match last_result {
             Ok(_) => Ok(output),
             Err(_) => {
-                // TODO: dump core to file
+                self.fs.write_str_to_file(CORE_DUMP_FILE_NAME,
+                                          &get_core_dump_str(&instr_blk, &self.cpu, &pcb));
                 Err("Err: segfault".to_string())
             }
         }

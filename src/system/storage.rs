@@ -28,8 +28,9 @@ impl FileSystem {
         self.get_full_path(file_name).exists()
     }
 
-    pub fn create<P: AsRef<Path>>(file_name: P) -> io::Result<fs::File> {
-        fs::File::create(file_name)
+    pub fn create<P: AsRef<Path>>(&self, file_name: P) -> io::Result<fs::File> {
+        let full_path = self.get_full_path(file_name);
+        fs::File::create(full_path)
     }
 
     pub fn open<P: AsRef<Path>>(&self, file_name: P) -> io::Result<fs::File> {
@@ -55,8 +56,7 @@ impl FileSystem {
                                              -> io::Result<()> {
         use std::io::Write;
 
-        let mut file = self.open(file_name)?;
-        file.write_all(contents.as_bytes())?;
-        Ok(())
+        let mut file = self.create(&file_name)?;
+        file.write_all(contents.as_bytes())
     }
 }
