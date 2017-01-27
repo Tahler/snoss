@@ -27,6 +27,9 @@ impl Cpu {
 
 impl fmt::Debug for Cpu {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Cpu: {{ instr_ptr: 0x{:x}, registers: {:?} }}", self.instr_ptr, self.registers)
+        write!(f,
+               "Cpu: {{ instr_ptr: 0x{:x}, registers: {:?} }}",
+               self.instr_ptr,
+               self.registers)
     }
 }

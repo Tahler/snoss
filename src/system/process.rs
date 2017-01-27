@@ -97,7 +97,11 @@ impl<'a> ProcessControlBlock<'a> {
 
 impl<'a> fmt::Debug for ProcessControlBlock<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ProcessControlBlock: {{ proc_id: {:?}, proc_status: {:?}, stack: {:?} }}", self.get_proc_id(), self.get_proc_status(), self.get_stack())
+        write!(f,
+               "ProcessControlBlock: {{ proc_id: {:?}, proc_status: {:?}, stack: {:?} }}",
+               self.get_proc_id(),
+               self.get_proc_status(),
+               self.get_stack())
     }
 }
 

@@ -49,7 +49,10 @@ impl Instruction {
 
 impl<'a> fmt::Debug for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Instruction: {{ type: {:?}, bytes: {:?} }}", self.get_type(), self.bytes)
+        write!(f,
+               "Instruction: {{ type: {:?}, bytes: {:?} }}",
+               self.get_type(),
+               self.bytes)
     }
 }
 
