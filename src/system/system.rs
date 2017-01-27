@@ -202,6 +202,10 @@ impl System {
                 }
             } else {
                 Err(())
+            };
+
+            if last_result.is_err() {
+                running = false;
             }
         }
 
@@ -211,7 +215,7 @@ impl System {
             Ok(_) => Ok(output),
             Err(_) => {
                 // TODO: dump core to file
-                Err("Seg faulted".to_string())
+                Err("Err: segfault".to_string())
             }
         }
     }

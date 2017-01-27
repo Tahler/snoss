@@ -30,8 +30,12 @@ impl<R: BufRead, W: Write> Shell<R, W> {
             match *cmd {
                 Command::Exit => return Ok(()),
                 _ => {
-                    let output = self.exec_cmd(&cmd_args)?;
-                    self.write_ln(&output);
+                    let result = self.exec_cmd(&cmd_args);
+                    let unwrapped = match result {
+                        Ok(s) => s,
+                        Err(s) => s,
+                    };
+                    self.write_ln(&unwrapped);
                 }
             }
         }
