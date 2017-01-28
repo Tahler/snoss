@@ -1,25 +1,20 @@
-use std::io::BufRead;
-use std::io::Write;
+use io_utils;
 
 use super::cmd::{CommandWithArgs, Command};
 use super::super::system::system::System;
 
 #[derive(Debug)]
-pub struct Shell<R: BufRead, W: Write> {
+pub struct Shell {
     system: System,
     // TODO: make it a `&'static str` or `&'a str`? or AsRef<String>
     prompt: String,
-    input: R,
-    output: W,
 }
 
-impl<R: BufRead, W: Write> Shell<R, W> {
-    pub fn new(system: System, prompt: String, input: R, output: W) -> Self {
+impl Shell {
+    pub fn new(system: System, prompt: String) -> Self {
         Shell {
             system: system,
             prompt: prompt,
-            input: input,
-            output: output,
         }
     }
 
@@ -35,7 +30,7 @@ impl<R: BufRead, W: Write> Shell<R, W> {
                         Ok(s) => s,
                         Err(s) => s,
                     };
-                    self.write_ln(&unwrapped);
+                    io_utils::write_ln(&unwrapped);
                 }
             }
         }
@@ -58,7 +53,7 @@ impl<R: BufRead, W: Write> Shell<R, W> {
         let mut optional_cmd = None;
         while optional_cmd.is_none() {
             self.write_prompt();
-            let line = self.read_line();
+            let line = io_utils::read_line();
             optional_cmd = if line.is_empty() {
                 None
             } else {
@@ -66,7 +61,7 @@ impl<R: BufRead, W: Write> Shell<R, W> {
                     Some(cmd) => Some(cmd),
                     None => {
                         let first_word = line.split_whitespace().next().unwrap();
-                        self.write_ln(&format!("{}: command not found", first_word));
+                        io_utils::write_ln(&format!("{}: command not found", first_word));
                         None
                     }
                 }
@@ -75,28 +70,8 @@ impl<R: BufRead, W: Write> Shell<R, W> {
         optional_cmd.unwrap()
     }
 
-    /// Returns a trimmed line read from the input.
-    fn read_line(&mut self) -> String {
-        let mut input_text = String::new();
-        self.input
-            .read_line(&mut input_text)
-            .expect("failed to read from input");
-        let trimmed = input_text.trim();
-        trimmed.to_string()
-    }
-
-    fn write_prompt(&mut self) {
+    fn write_prompt(&self) {
         let prompt = self.prompt.to_owned();
-        self.write(&prompt);
-    }
-
-    fn write(&mut self, msg: &str) {
-        self.output.write_all(msg.as_bytes());
-        self.output.flush();
-    }
-
-    fn write_ln(&mut self, msg: &str) {
-        let msg_with_ln = msg.to_string() + "\n";
-        self.write(&msg_with_ln);
+        io_utils::write(&prompt);
     }
 }
