@@ -73,7 +73,6 @@ pid state exe ip  1 2 3 4 5 6
 
 ## Needs
 
-- Create 2 infinite loop programs.
 - Refactor PCB to be const size.
 - Create process list, mapping `pid` to `pcb_addr`
 - Indicate whether block in memory is in use.
