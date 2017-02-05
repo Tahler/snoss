@@ -5,7 +5,7 @@ const USABLE_MEM_START: usize = 4;
 
 #[derive(Debug)]
 pub struct Memory {
-    pub bytes: Box<[u8]>, // Store the stack_ptr at bytes 0-1?
+    pub bytes: Box<[u8]>,
 }
 
 impl Memory {

@@ -6,11 +6,11 @@ extern crate enum_primitive;
 
 mod byte_utils;
 mod io_utils;
-mod shell;
-mod system;
+mod sh;
+mod os;
 
-use system::system::System;
-use shell::shell::Shell;
+use os::System;
+use sh::Shell;
 
 const PROMPT: &'static str = "> ";
 

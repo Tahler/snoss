@@ -1,7 +1,7 @@
 use io_utils;
 
 use super::cmd::{CommandWithArgs, Command};
-use super::super::system::system::System;
+use super::super::os::os::System;
 
 #[derive(Debug)]
 pub struct Shell {
