@@ -45,7 +45,7 @@ impl Ram {
         }
     }
 
-   pub fn get_pcb_mut(&mut self, proc_id: u16) -> &mut Pcb {
+    pub fn get_pcb_mut(&mut self, proc_id: u16) -> &mut Pcb {
         use self::Block::*;
 
         match self.block_tbl[proc_id as usize] {
@@ -78,6 +78,7 @@ impl Ram {
         let stored_next = self.next_avail;
         self.block_tbl[proc_id as usize] = Avail(Some(stored_next));
         self.procs.remove(&proc_id);
+        self.next_avail = proc_id;
     }
 }
 
