@@ -2,6 +2,8 @@ use std::fmt;
 use byte_utils::{self, AccessResult};
 
 pub const INSTRUCTION_LEN: usize = 4;
+pub const NUM_INSTRUCTIONS_PER_BLOCK: usize = 256;
+pub const INSTRUCTION_BLOCK_LEN: usize = NUM_INSTRUCTIONS_PER_BLOCK * INSTRUCTION_LEN;
 
 pub struct Instruction {
     bytes: [u8; INSTRUCTION_LEN],
@@ -47,7 +49,7 @@ impl Instruction {
     }
 }
 
-impl<'a> fmt::Debug for Instruction {
+impl fmt::Debug for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
                "Instruction: {{ type: {:?}, bytes: {:?} }}",
@@ -84,14 +86,25 @@ pub enum InstructionType {
 }
 
 #[derive(Debug)]
-pub struct InstructionBlock<'a> {
-    bytes: &'a [u8],
+pub struct InstructionBlock {
+    instructions: Vec<Instruction>,
 }
 
-impl<'a> InstructionBlock<'a> {
-    pub fn new(bytes: &'a [u8]) -> Result<InstructionBlock<'a>, String> {
+impl InstructionBlock {
+    pub fn new(bytes: &[u8]) -> Result<InstructionBlock, String> {
         if bytes.len() % INSTRUCTION_LEN == 0 {
-            let block = InstructionBlock { bytes: bytes };
+            let mut instrs: Vec<Instruction> = Vec::with_capacity(bytes.len() / INSTRUCTION_LEN);
+            let mut instr_bytes: [u8; 4] = [0; 4];
+            for i in 0..bytes.len() {
+                let instr_idx = i % INSTRUCTION_LEN;
+                instr_bytes[instr_idx] = bytes[i];
+                if instr_idx == INSTRUCTION_LEN - 1 {
+                    let instr = Instruction { bytes: instr_bytes };
+                    instrs.push(instr);
+                    instr_bytes = [0; INSTRUCTION_LEN];
+                }
+            }
+            let block = InstructionBlock { instructions: instrs };
             Ok(block)
         } else {
             Err(format!("An instruction block's size must be a multiple of the instruction size \
@@ -100,12 +113,11 @@ impl<'a> InstructionBlock<'a> {
         }
     }
 
-    pub fn get_instruction_at(&self, addr: usize) -> AccessResult<Instruction> {
-        if is_aligned(addr) {
-            let opt_bytes = byte_utils::get_slice(self.bytes, addr..addr + INSTRUCTION_LEN);
-            opt_bytes.map(|bytes| Instruction::from_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
-            // let bytes = &self.bytes[addr..addr + INSTRUCTION_LEN];
-            // Instruction::from_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
+    pub fn get_instruction_at(&self, addr: usize) -> AccessResult<&Instruction> {
+        let idx = addr / INSTRUCTION_LEN;
+        let is_in_bounds = idx < self.instructions.len();
+        if is_aligned(addr) && is_in_bounds {
+            Ok(&self.instructions[idx])
         } else {
             Err(())
         }

@@ -6,4 +6,3 @@ mod instr;
 mod ps;
 
 pub use self::os::System;
-

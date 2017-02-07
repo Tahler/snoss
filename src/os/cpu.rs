@@ -1,18 +1,19 @@
 use std::fmt;
 use byte_utils::AccessResult;
+use super::os::NUM_REGISTERS;
 
 pub const WORD_LEN: usize = 2;
 
 pub struct Cpu {
-    pub instr_ptr: usize,
-    pub registers: Box<[u16]>,
+    pub instr_ptr: u16,
+    pub registers: [u16; NUM_REGISTERS],
 }
 
 impl Cpu {
-    pub fn new(num_registers: usize) -> Self {
+    pub fn init() -> Self {
         Cpu {
             instr_ptr: 0,
-            registers: vec![0; num_registers].into_boxed_slice(),
+            registers: [0; NUM_REGISTERS],
         }
     }
 

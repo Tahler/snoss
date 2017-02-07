@@ -1,113 +1,135 @@
 use std::fmt;
+use super::cpu::Cpu;
+use super::instr::{InstructionBlock, INSTRUCTION_LEN};
 
-use byte_utils;
-
-use super::cpu::WORD_LEN;
-
-const PROC_ID_LOC: usize = 0;
-const PROC_STATUS_LOC: usize = PROC_ID_LOC + WORD_LEN;
-const INSTR_PTR_LOC: usize = PROC_STATUS_LOC + WORD_LEN;
-const INSTR_BLOCK_ADDR_LOC: usize = INSTR_PTR_LOC + WORD_LEN;
-const STACK_LEN_LOC: usize = INSTR_BLOCK_ADDR_LOC + WORD_LEN;
-pub const STACK_LOC: usize = STACK_LEN_LOC + WORD_LEN;
-
-pub const PCB_METADATA_LEN: usize = STACK_LOC;
+pub const PCB_LEN: usize = HEADER_LEN + STACK_LEN + INSTRUCTION_BLK_LEN;
+const HEADER_LEN: usize = 2 + 2 + CTX_LEN;
+const CTX_LEN: usize = 14;
+// 64 bytes stack limit
 pub const STACK_LEN: usize = 64;
-pub const PCB_LEN: usize = PCB_METADATA_LEN + STACK_LEN;
+// 256 instructions limit
+pub const INSTRUCTION_BLK_LEN: usize = 256 * INSTRUCTION_LEN;
 
-pub struct ProcessControlBlock<'a> {
-    bytes: &'a mut [u8],
+#[derive(Debug)]
+pub struct Pcb {
+    header: PcbHeader,
+    pub stack: Stack,
+    pub instr: InstructionBlock,
 }
 
-impl<'a> ProcessControlBlock<'a> {
-    pub fn new(bytes: &'a mut [u8],
-               proc_id: u16,
-               instr_blk_addr: u16)
-               -> Result<ProcessControlBlock<'a>, String> {
-        if bytes.len() == PCB_LEN {
-            let stack_len = (bytes.len() - PCB_METADATA_LEN) as u16;
+#[derive(Debug)]
+struct PcbHeader {
+    pub id: u16,
+    pub status: ProcStatus,
+    pub ctx: ProcContext,
+}
 
-            let mut block = ProcessControlBlock { bytes: bytes };
-            block.set_proc_id(proc_id);
-            block.set_proc_status(ProcessStatus::None);
-            block.set_instr_ptr(0);
-            block.set_instr_blk_addr(instr_blk_addr);
-            block.set_stack_len(stack_len);
+#[derive(Debug, PartialEq)]
+pub enum ProcStatus {
+    None = 0,
+}
 
-            Ok(block)
-        } else {
-            Err(format!("Mem slice is not of the correct size. expected: {:?} actual: {:?}",
-                        PCB_LEN,
-                        bytes.len()))
+#[derive(Debug)]
+struct ProcContext {
+    instr_ptr: u16,
+    reg_1: u16,
+    reg_2: u16,
+    reg_3: u16,
+    reg_4: u16,
+    reg_5: u16,
+    reg_6: u16,
+}
+
+pub struct Stack {
+    pub bytes: [u8; STACK_LEN],
+}
+
+impl Pcb {
+    pub fn new(proc_id: u16, instr: InstructionBlock) -> Pcb {
+        Pcb {
+            header: PcbHeader {
+                id: proc_id,
+                status: ProcStatus::None,
+                ctx: ProcContext::new(),
+            },
+            stack: Stack::new(),
+            instr: instr,
         }
     }
 
+    pub fn save_ctx(&mut self, cpu: &Cpu) {
+        let mut ctx = &mut self.header.ctx;
+        ctx.instr_ptr = cpu.instr_ptr as u16;
+        ctx.reg_1 = cpu.registers[0];
+        ctx.reg_2 = cpu.registers[1];
+        ctx.reg_3 = cpu.registers[2];
+        ctx.reg_4 = cpu.registers[3];
+        ctx.reg_5 = cpu.registers[4];
+        ctx.reg_6 = cpu.registers[5];
+    }
+
+    // TODO: this should maybe be in os.rs
+    // pub fn load_ctx() {}
+
     pub fn get_stack(&self) -> &[u8] {
-        &self.bytes[PCB_METADATA_LEN..]
+        &self.stack.bytes
     }
 
     pub fn get_stack_mut(&mut self) -> &mut [u8] {
-        &mut self.bytes[PCB_METADATA_LEN..]
+        &mut self.stack.bytes
     }
 
-    pub fn get_proc_id(&self) -> u16 {
-        byte_utils::get_u16_at(self.bytes, PROC_ID_LOC).unwrap()
+    pub fn get_instr_blk(&self) -> &InstructionBlock {
+        &self.instr
     }
 
-    pub fn set_proc_id(&mut self, proc_id: u16) {
-        byte_utils::set_u16_at(self.bytes, PROC_ID_LOC, proc_id).unwrap()
+    pub fn get_id(&self) -> u16 {
+        self.header.id
     }
 
-    pub fn get_proc_status(&self) -> ProcessStatus {
-        use enum_primitive::FromPrimitive;
-        let proc_status_num = byte_utils::get_u16_at(self.bytes, PROC_STATUS_LOC).unwrap();
-        ProcessStatus::from_u16(proc_status_num).unwrap()
+    pub fn set_id(&mut self, proc_id: u16) {
+        self.header.id = proc_id;
     }
 
-    pub fn set_proc_status(&mut self, proc_status: ProcessStatus) {
-        let proc_status_num = proc_status as u16;
-        byte_utils::set_u16_at(self.bytes, PROC_STATUS_LOC, proc_status_num);
+    pub fn get_status(&self) -> &ProcStatus {
+        &self.header.status
+    }
+
+    pub fn set_status(&mut self, proc_status: ProcStatus) {
+        self.header.status = proc_status;
     }
 
     pub fn get_instr_ptr(&self) -> u16 {
-        byte_utils::get_u16_at(self.bytes, INSTR_PTR_LOC).unwrap()
+        self.header.ctx.instr_ptr
     }
 
     pub fn set_instr_ptr(&mut self, instr_ptr: u16) {
-        byte_utils::set_u16_at(self.bytes, INSTR_PTR_LOC, instr_ptr);
-    }
-
-    pub fn get_instr_blk_addr(&self) -> u16 {
-        byte_utils::get_u16_at(self.bytes, INSTR_BLOCK_ADDR_LOC).unwrap()
-    }
-
-    fn set_instr_blk_addr(&mut self, instr_blk_addr: u16) {
-        byte_utils::set_u16_at(self.bytes, INSTR_BLOCK_ADDR_LOC, instr_blk_addr);
-    }
-
-    pub fn get_stack_len(&self) -> u16 {
-        let stack_len_bytes = [self.bytes[STACK_LEN_LOC], self.bytes[STACK_LEN_LOC + 1]];
-        byte_utils::u16_from_bytes(stack_len_bytes)
-    }
-
-    fn set_stack_len(&mut self, stack_len: u16) {
-        byte_utils::set_u16_at(self.bytes, STACK_LEN_LOC, stack_len);
+        self.header.ctx.instr_ptr = instr_ptr;
     }
 }
 
-impl<'a> fmt::Debug for ProcessControlBlock<'a> {
+impl Stack {
+    fn new() -> Self {
+        Stack { bytes: [0; STACK_LEN] }
+    }
+}
+
+impl ProcContext {
+    fn new() -> Self {
+        ProcContext {
+            instr_ptr: 0,
+            reg_1: 0,
+            reg_2: 0,
+            reg_3: 0,
+            reg_4: 0,
+            reg_5: 0,
+            reg_6: 0,
+        }
+    }
+}
+
+impl fmt::Debug for Stack {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,
-               "ProcessControlBlock: {{ proc_id: {:?}, proc_status: {:?}, stack: {:?} }}",
-               self.get_proc_id(),
-               self.get_proc_status(),
-               self.get_stack())
+        write!(f, "Stack {:?}", &self.bytes[..])
     }
-}
-
-enum_from_primitive! {
-#[derive(Debug, PartialEq)]
-pub enum ProcessStatus {
-    None = 0
-}
 }

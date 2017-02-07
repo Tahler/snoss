@@ -15,7 +15,7 @@ use sh::Shell;
 const PROMPT: &'static str = "> ";
 
 fn main() {
-    let system = System::new();
+    let system = System::init();
 
     let prompt = PROMPT.to_string();
 
