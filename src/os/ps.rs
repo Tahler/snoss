@@ -29,16 +29,7 @@ pub enum ProcStatus {
     None = 0,
 }
 
-#[derive(Debug)]
-struct ProcContext {
-    instr_ptr: u16,
-    reg_1: u16,
-    reg_2: u16,
-    reg_3: u16,
-    reg_4: u16,
-    reg_5: u16,
-    reg_6: u16,
-}
+type ProcContext = Cpu;
 
 pub struct Stack {
     pub bytes: [u8; STACK_LEN],
@@ -60,12 +51,7 @@ impl Pcb {
     pub fn save_ctx(&mut self, cpu: &Cpu) {
         let mut ctx = &mut self.header.ctx;
         ctx.instr_ptr = cpu.instr_ptr as u16;
-        ctx.reg_1 = cpu.registers[0];
-        ctx.reg_2 = cpu.registers[1];
-        ctx.reg_3 = cpu.registers[2];
-        ctx.reg_4 = cpu.registers[3];
-        ctx.reg_5 = cpu.registers[4];
-        ctx.reg_6 = cpu.registers[5];
+        ctx.registers.clone_from_slice(&cpu.registers);
     }
 
     // TODO: this should maybe be in os.rs
@@ -118,12 +104,7 @@ impl ProcContext {
     fn new() -> Self {
         ProcContext {
             instr_ptr: 0,
-            reg_1: 0,
-            reg_2: 0,
-            reg_3: 0,
-            reg_4: 0,
-            reg_5: 0,
-            reg_6: 0,
+            registers: [0; super::os::NUM_REGISTERS],
         }
     }
 }
