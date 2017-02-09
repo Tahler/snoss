@@ -1,8 +1,6 @@
 use std::fmt;
 use byte_utils::AccessResult;
-use super::os::NUM_REGISTERS;
-
-pub const WORD_LEN: usize = 2;
+use super::os::consts::NUM_REGISTERS;
 
 pub struct Cpu {
     pub instr_ptr: u16,

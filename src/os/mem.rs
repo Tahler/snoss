@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use super::os::RAM_LEN;
+use super::os::consts::RAM_LEN;
 use super::ps::Pcb;
 use super::instr::InstructionBlock;
 

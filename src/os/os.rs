@@ -6,10 +6,13 @@ use super::mem::Ram;
 use super::instr::InstructionBlock;
 use super::ps::Pcb;
 
-pub const NUM_REGISTERS: usize = 6;
-pub const RAM_LEN: usize = 10_000;
+pub mod consts {
+    pub const NUM_REGISTERS: usize = 6;
+    pub const RAM_LEN: usize = 10_000;
+    pub const WORD_LEN: usize = 2;
 
-const CORE_DUMP_FILE_NAME: &'static str = "coredump";
+    pub const CORE_DUMP_FILE_NAME: &'static str = "coredump";
+}
 
 #[derive(Debug)]
 pub struct System {
@@ -196,7 +199,7 @@ impl System {
             match last_result {
                 Ok(_) => Ok(output),
                 Err(_) => {
-                    self.fs.write_str_to_file(CORE_DUMP_FILE_NAME,
+                    self.fs.write_str_to_file(consts::CORE_DUMP_FILE_NAME,
                                               &get_core_dump_str(&self.cpu, &pcb));
                     Err("Err: segfault".to_string())
                 }

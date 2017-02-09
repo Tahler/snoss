@@ -104,7 +104,7 @@ impl ProcContext {
     fn new() -> Self {
         ProcContext {
             instr_ptr: 0,
-            registers: [0; super::os::NUM_REGISTERS],
+            registers: [0; super::os::consts::NUM_REGISTERS],
         }
     }
 }
