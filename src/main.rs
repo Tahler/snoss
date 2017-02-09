@@ -3,9 +3,11 @@
 
 #[macro_use]
 extern crate enum_primitive;
+extern crate time;
 
 mod byte_utils;
 mod io_utils;
+mod time_utils;
 mod sh;
 mod os;
 

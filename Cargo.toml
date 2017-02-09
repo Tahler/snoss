@@ -5,3 +5,4 @@ authors = ["Tyler Berry <tyler@berryac.com>"]
 
 [dependencies]
 enum_primitive = "0.1.1"
+time = "0.1.36"
