@@ -4,6 +4,7 @@ use super::pcb::Pcb;
 use super::super::instr::InstructionBlock;
 
 pub type PcbIter<'a> = collections::hash_map::Values<'a, u16, Pcb>;
+pub type PcbIterMut<'a> = collections::hash_map::ValuesMut<'a, u16, Pcb>;
 
 #[derive(Debug)]
 pub struct ProcessTable {
@@ -30,6 +31,10 @@ impl ProcessTable {
 
     pub fn get_running_procs(&self) -> PcbIter {
         self.procs.values()
+    }
+
+    pub fn get_running_procs_mut(&mut self) -> PcbIterMut {
+        self.procs.values_mut()
     }
 
     // TODO: check num processes first, return Result
