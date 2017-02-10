@@ -1,8 +1,9 @@
-use std::collections::HashMap;
-use std::collections::LinkedList;
+use std::collections::{self, HashMap, LinkedList};
 use os::consts::MAX_PROCS;
 use super::pcb::Pcb;
 use super::super::instr::InstructionBlock;
+
+pub type PcbIter<'a> = collections::hash_map::Values<'a, u16, Pcb>;
 
 #[derive(Debug)]
 pub struct ProcessTable {
@@ -25,6 +26,10 @@ impl ProcessTable {
 
     pub fn get_pcb_mut(&mut self, proc_id: u16) -> &mut Pcb {
         self.procs.get_mut(&proc_id).unwrap()
+    }
+
+    pub fn get_running_procs(&self) -> PcbIter {
+        self.procs.values()
     }
 
     // TODO: check num processes first, return Result
