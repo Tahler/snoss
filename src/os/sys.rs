@@ -1,32 +1,32 @@
-use super::super::byte_utils;
-
+use byte_utils;
 use super::cpu::Cpu;
 use super::fs::FileSystem;
-use super::mem::Ram;
 use super::instr::InstructionBlock;
+use super::ps::ProcessTable;
 use super::ps::Pcb;
 
 pub mod consts {
     pub const NUM_REGISTERS: usize = 6;
     pub const RAM_LEN: usize = 10_000;
     pub const WORD_LEN: usize = 2;
-
+    pub const STACK_LEN: usize = 64;
+    pub const MAX_PROCS: usize = 10;
     pub const CORE_DUMP_FILE_NAME: &'static str = "coredump";
 }
 
 #[derive(Debug)]
 pub struct System {
     cpu: Cpu,
-    ram: Ram,
     fs: FileSystem,
+    proc_tbl: ProcessTable,
 }
 
 impl System {
     pub fn init() -> Self {
         System {
             cpu: Cpu::init(),
-            ram: Ram::init(),
             fs: FileSystem::new("./fs"),
+            proc_tbl: ProcessTable::new(),
         }
     }
 
@@ -44,9 +44,9 @@ impl System {
 
     pub fn exec(&mut self, file_name: &str, dump_each_time: bool) -> Result<String, String> {
         let instr_blk = self.load_instr(file_name)?;
-        let proc_id = self.ram.alloc_pcb(instr_blk);
+        let proc_id = self.proc_tbl.alloc_pcb(instr_blk).ok_or("Out of space".to_string())?;
         let result = {
-            let mut pcb = self.ram.get_pcb_mut(proc_id);
+            let mut pcb = self.proc_tbl.get_pcb_mut(proc_id);
             self.cpu.instr_ptr = pcb.get_instr_ptr();
             let instr_blk = &pcb.instr;
 
@@ -206,7 +206,7 @@ impl System {
             }
         };
 
-        self.ram.dealloc_pcb(proc_id);
+        self.proc_tbl.dealloc_pcb(proc_id);
 
         result
     }

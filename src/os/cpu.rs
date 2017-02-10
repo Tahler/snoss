@@ -1,6 +1,6 @@
 use std::fmt;
 use byte_utils::AccessResult;
-use super::os::consts::NUM_REGISTERS;
+use os::consts::NUM_REGISTERS;
 
 pub struct Cpu {
     pub instr_ptr: u16,

@@ -1,8 +1,7 @@
-pub mod os;
+pub use self::sys::*;
+
 mod cpu;
-mod mem;
 mod fs;
 mod instr;
 mod ps;
-
-pub use self::os::System;
+mod sys;
