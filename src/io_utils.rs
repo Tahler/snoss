@@ -1,33 +1,41 @@
-use std::io::{self, Read, BufRead, stdin};
+use std::io::{self, Read, Write};
 
 pub fn read_byte_from_stdin() -> u8 {
-    let input: Option<u8> = stdin()
-        .bytes()
-        .next()
-        .and_then(|result| result.ok())
-        .map(|byte| byte as u8);
-    input.unwrap()
+    read_byte(&mut io::stdin())
+}
+
+pub fn read_byte<R: Read>(reader: &mut R) -> u8 {
+    let mut buf = [0];
+    reader.read_exact(&mut buf);
+    buf[0]
+}
+
+pub fn read_char<R: Read>(reader: &mut R) -> char {
+    read_byte(reader) as char
 }
 
 /// Returns a trimmed line read from the input.
-pub fn read_line() -> String {
+/// Note: Inefficient as it reads only one byte at a time.
+pub fn read_line<R: Read>(reader: &mut R) -> String {
     let mut input_text = String::new();
-    let stdin = stdin();
-    stdin.lock()
-        .read_line(&mut input_text)
-        .expect("failed to read from input");
+    loop {
+        let ch = read_char(reader);
+        if ch == '\n' {
+            break;
+        } else {
+            input_text.push(ch);
+        }
+    }
     let trimmed = input_text.trim();
     trimmed.to_string()
 }
 
-pub fn write(msg: &str) {
-    use std::io::Write;
-    let mut output = io::stdout();
-    output.write_all(msg.as_bytes());
-    output.flush();
+pub fn write<W: Write>(writer: &mut W, msg: &str) {
+    writer.write_all(msg.as_bytes());
+    writer.flush();
 }
 
-pub fn write_ln(msg: &str) {
+pub fn write_ln<W: Write>(writer: &mut W, msg: &str) {
     let msg_with_ln = msg.to_string() + "\n";
-    write(&msg_with_ln);
+    write(writer, &msg_with_ln);
 }

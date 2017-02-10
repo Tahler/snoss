@@ -83,6 +83,4 @@ pid state exe ip  1 2 3 4 5 6
 ## Wants
 
 - Refactor `System.exec()` - extract methods
-- Generic I/O
-  - Benefits include: built-in scripting, easy redirection
 - Remove compiler mutes

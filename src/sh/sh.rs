@@ -1,20 +1,24 @@
+use std::io::{Read, Write};
 use io_utils;
-
 use sh::cmd::{CommandWithArgs, Command};
 use os::System;
 
 #[derive(Debug)]
-pub struct Shell {
+pub struct Shell<R: Read, W: Write> {
     system: System,
     // TODO: make it a `&'static str` or `&'a str`? or AsRef<String>
     prompt: String,
+    reader: R,
+    writer: W,
 }
 
-impl Shell {
-    pub fn new(system: System, prompt: String) -> Self {
+impl<R: Read, W: Write> Shell<R, W> {
+    pub fn new(system: System, prompt: String, reader: R, writer: W) -> Self {
         Shell {
             system: system,
             prompt: prompt,
+            reader: reader,
+            writer: writer,
         }
     }
 
@@ -30,7 +34,7 @@ impl Shell {
                         Ok(s) => s,
                         Err(s) => s,
                     };
-                    io_utils::write_ln(&unwrapped);
+                    self.write_ln(&unwrapped);
                 }
             }
         }
@@ -53,7 +57,7 @@ impl Shell {
         let mut optional_cmd = None;
         while optional_cmd.is_none() {
             self.write_prompt();
-            let line = io_utils::read_line();
+            let line = self.read_line();
             optional_cmd = if line.is_empty() {
                 None
             } else {
@@ -61,7 +65,7 @@ impl Shell {
                     Some(cmd) => Some(cmd),
                     None => {
                         let first_word = line.split_whitespace().next().unwrap();
-                        io_utils::write_ln(&format!("{}: command not found", first_word));
+                        self.write_ln(&format!("{}: command not found", first_word));
                         None
                     }
                 }
@@ -70,8 +74,20 @@ impl Shell {
         optional_cmd.unwrap()
     }
 
-    fn write_prompt(&self) {
+    fn read_line(&mut self) -> String {
+        io_utils::read_line(&mut self.reader)
+    }
+
+    fn write_prompt(&mut self) {
         let prompt = self.prompt.to_owned();
-        io_utils::write(&prompt);
+        self.write(&prompt);
+    }
+
+    fn write(&mut self, msg: &str) {
+        io_utils::write(&mut self.writer, msg)
+    }
+
+    fn write_ln(&mut self, msg: &str) {
+        io_utils::write_ln(&mut self.writer, msg)
     }
 }

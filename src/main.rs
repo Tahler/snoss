@@ -17,11 +17,13 @@ use sh::Shell;
 const PROMPT: &'static str = "> ";
 
 fn main() {
+    use std::io;
+
     let system = System::init();
 
     let prompt = PROMPT.to_string();
 
-    let mut shell = Shell::new(system, prompt);
+    let mut shell = Shell::new(system, prompt, io::stdin(), io::stdout());
     let result = shell.start();
     if result.is_err() {
         println!("Err: {:?}", result.err().unwrap());
