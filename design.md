@@ -80,14 +80,11 @@ pid state exe ip  1 2 3 4 5 6
 
 ## Needs
 
-- Impl forking
-- Fork exec if cmd ends with `&`
+- `ps` to show file name
 - Impl logging level
   - Log time slice (consider chrono crate)
-- `kill` should terminate a running process
-- `ps` should print process table
 
 ## Wants
 
-- Refactor `System.exec()` - extract methods
+- Generic read and write
 - Remove compiler mutes
