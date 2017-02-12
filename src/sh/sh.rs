@@ -35,7 +35,7 @@ impl Shell {
                 }
                 Command::ExecuteAsync => {
                     let file = &cmd_args.args[0];
-                    self.system.exec(file, false);
+                    self.system.exec(file, false)?;
                 }
                 _ => {
                     let result = self.exec_cmd(&cmd_args);
@@ -55,7 +55,6 @@ impl Shell {
         match command.cmd {
             ListFiles => Ok(self.system.list_files()),
             ListProcesses => Ok(self.system.list_procs()),
-            // ExecuteWithInfo => self.system.exec(&command.args[0], true),
             Kill => {
                 let pid = &command.args[0];
                 let pid = pid.parse::<u16>().unwrap();
