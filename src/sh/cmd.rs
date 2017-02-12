@@ -41,9 +41,9 @@ fn extract_cmd(tokens: &Vec<&str>) -> Option<Command> {
         "ps" => Some(ListProcesses),
         "exec" => {
             if *tokens.last().unwrap() == "&" {
-                Some(Execute)
-            } else {
                 Some(ExecuteAsync)
+            } else {
+                Some(Execute)
             }
         },
         "kill" => Some(Kill),
