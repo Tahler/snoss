@@ -5,7 +5,7 @@ use super::cpu::Cpu;
 use super::exec::{Executor, ExecResult};
 use super::fs::FileSystem;
 use super::instr::InstructionBlock;
-use super::ps::{Pcb, Header as PcbHeader, ProcessTable};
+use super::ps::{Pcb, Header as PcbHeader, ProcessTable, Status as ProcessStatus};
 
 pub mod consts {
     pub const NUM_REGISTERS: usize = 6;
@@ -51,6 +51,9 @@ impl System {
             loop {
                 let exited_proc_id = exit_rx.recv().unwrap();
                 let mut proc_tbl = proc_tbl.lock().unwrap();
+                let pcb = proc_tbl.get_pcb(exited_proc_id);
+                let mut pcb = pcb.lock().unwrap();
+                pcb.set_status(ProcessStatus::Killed);
                 proc_tbl.dealloc_pcb(exited_proc_id);
             }
         })

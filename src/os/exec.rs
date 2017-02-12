@@ -47,8 +47,11 @@ impl Executor {
                     // Rust does not seem to use FIFO queues for Mutex locks.
                     // This enables the other threads to grab hold of the resources.
                     thread::sleep(Duration::new(0, 1));
-                    let mut cpu = self.cpu.lock().unwrap();
                     let mut pcb = self.pcb.lock().unwrap();
+                    if *pcb.get_status() == ProcessStatus::Killed {
+                        break;
+                    }
+                    let mut cpu = self.cpu.lock().unwrap();
                     debug!("Proc {}: begin time slice", proc_id);
                     load_cpu_ctx(&mut cpu, &pcb);
                     // Execute
@@ -64,7 +67,10 @@ impl Executor {
                 }
                 thread::yield_now();
             }
-            kill_tx.send(proc_id).unwrap();
+            // if exiting on its own
+            if result == ExecResult::Exit {
+                kill_tx.send(proc_id).unwrap();
+            }
             result
         })
     }

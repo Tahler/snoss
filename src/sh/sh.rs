@@ -61,7 +61,6 @@ impl Shell {
                 self.system.kill(pid)?;
                 Ok(format!("Killed process {}", pid))
             }
-            Exit => Ok("Bye!".to_string()),
             _ => unreachable!(),
         }
     }

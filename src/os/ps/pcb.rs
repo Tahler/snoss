@@ -30,6 +30,7 @@ pub enum Status {
     Ready,
     Blocked,
     Executing,
+    Killed,
 }
 
 type Context = Cpu;
