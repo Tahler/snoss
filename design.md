@@ -71,6 +71,13 @@ pid state exe ip  1 2 3 4 5 6
 3   abc   abc x   x x x x x x
 ```
 
+## Forking
+
+1. Shell receives `exec FILE`
+1. Shell calls sys.exec(file), attaching it's stdin and stdout unless `&` was present
+1. System
+1. System creates an executor
+
 ## Needs
 
 - Impl forking

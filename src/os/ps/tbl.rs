@@ -1,15 +1,17 @@
 use std::collections::{self, HashMap, LinkedList};
+use std::sync::{Arc, Mutex};
 use os::consts::MAX_PROCS;
 use super::pcb::Pcb;
 use super::super::instr::InstructionBlock;
 
-pub type PcbIter<'a> = collections::hash_map::Values<'a, u16, Pcb>;
-pub type PcbIterMut<'a> = collections::hash_map::ValuesMut<'a, u16, Pcb>;
+pub type PcbIter<'a> = collections::hash_map::Values<'a, u16, Arc<Mutex<Pcb>>>;
+pub type PcbIterMut<'a> = collections::hash_map::ValuesMut<'a, u16, Arc<Mutex<Pcb>>>;
 
 #[derive(Debug)]
 pub struct ProcessTable {
     next_ids: LinkedList<u16>,
-    procs: HashMap<u16, Pcb>,
+    // TODO: could easily use a fixed-sized array of blocks
+    procs: HashMap<u16, Arc<Mutex<Pcb>>>,
 }
 
 impl ProcessTable {
@@ -21,12 +23,12 @@ impl ProcessTable {
         }
     }
 
-    pub fn get_pcb(&self, proc_id: u16) -> &Pcb {
-        &self.procs[&proc_id]
+    pub fn contains(&self, proc_id: u16) -> bool {
+        self.procs.contains_key(&proc_id)
     }
 
-    pub fn get_pcb_mut(&mut self, proc_id: u16) -> &mut Pcb {
-        self.procs.get_mut(&proc_id).unwrap()
+    pub fn get_pcb(&self, proc_id: u16) -> Arc<Mutex<Pcb>> {
+        self.procs[&proc_id].clone()
     }
 
     pub fn get_running_procs(&self) -> PcbIter {
@@ -37,11 +39,12 @@ impl ProcessTable {
         self.procs.values_mut()
     }
 
-    // TODO: check num processes first, return Result
     /// Returns the Process ID of the allocated PCB.
+    /// Returns `None` if there were no more available slots in the table.
     pub fn alloc_pcb(&mut self, instr: InstructionBlock) -> Option<u16> {
         self.next_ids.pop_front().map(|proc_id| {
             let pcb = Pcb::new(proc_id, instr);
+            let pcb = Arc::new(Mutex::new(pcb));
             self.procs.insert(proc_id, pcb);
             proc_id
         })

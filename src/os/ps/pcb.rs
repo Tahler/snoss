@@ -17,6 +17,10 @@ pub struct Pcb {
     pub instr: InstructionBlock,
 }
 
+// TODO: is this automatically impl?
+// unsafe impl Send for Pcb {
+// }
+
 #[derive(Debug)]
 struct Header {
     pub id: u16,
@@ -48,14 +52,17 @@ impl Pcb {
         }
     }
 
-    pub fn save_ctx(&mut self, cpu: &Cpu) {
-        let mut ctx = &mut self.header.ctx;
-        ctx.instr_ptr = cpu.instr_ptr as u16;
-        ctx.registers.clone_from_slice(&cpu.registers);
+    pub fn load_cpu_ctx(&self, cpu: &mut Cpu) {
+        let ctx = &self.header.ctx;
+        cpu.instr_ptr = ctx.instr_ptr;
+        cpu.registers.clone_from_slice(&ctx.registers);
     }
 
-    // TODO: this should maybe be in os.rs
-    // pub fn load_ctx() {}
+    pub fn save_cpu_ctx(&mut self, cpu: &Cpu) {
+        let mut ctx = &mut self.header.ctx;
+        ctx.instr_ptr = cpu.instr_ptr;
+        ctx.registers.clone_from_slice(&cpu.registers[..]);
+    }
 
     pub fn get_stack(&self) -> &[u8] {
         &self.stack.bytes

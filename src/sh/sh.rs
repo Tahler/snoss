@@ -1,24 +1,24 @@
-use std::io::{Read, Write};
+use std::io;
 use io_utils;
 use sh::cmd::{CommandWithArgs, Command};
 use os::System;
 
-#[derive(Debug)]
-pub struct Shell<R: Read, W: Write> {
+// #[derive(Debug)]
+pub struct Shell {
     system: System,
     // TODO: make it a `&'static str` or `&'a str`? or AsRef<String>
     prompt: String,
-    reader: R,
-    writer: W,
+    reader: io::Stdin,
+    writer: io::Stdout,
 }
 
-impl<R: Read, W: Write> Shell<R, W> {
-    pub fn new(system: System, prompt: String, reader: R, writer: W) -> Self {
+impl Shell {
+    pub fn new(system: System, prompt: String) -> Self {
         Shell {
             system: system,
             prompt: prompt,
-            reader: reader,
-            writer: writer,
+            reader: io::stdin(),
+            writer: io::stdout(),
         }
     }
 
@@ -28,6 +28,15 @@ impl<R: Read, W: Write> Shell<R, W> {
             let cmd = &cmd_args.cmd;
             match *cmd {
                 Command::Exit => return Ok(()),
+                Command::Execute => {
+                    let file = &cmd_args.args.unwrap()[0];
+                    let handle = self.system.exec(file, true)?;
+                    handle.join();
+                }
+                Command::ExecuteAsync => {
+                    let file = &cmd_args.args.unwrap()[0];
+                    self.system.exec(file, false);
+                }
                 _ => {
                     let result = self.exec_cmd(&cmd_args);
                     let unwrapped = match result {
@@ -46,10 +55,10 @@ impl<R: Read, W: Write> Shell<R, W> {
         match command.cmd {
             ListFiles => Ok(self.system.list_files()),
             ProcessStatus => Ok("Not yet implemented.".to_string()),
-            Execute => self.system.exec(&command.args[0], false),
-            ExecuteWithInfo => self.system.exec(&command.args[0], true),
+            // ExecuteWithInfo => self.system.exec(&command.args[0], true),
             Kill => Ok("Not yet implemented.".to_string()),
             Exit => Ok("Bye!".to_string()),
+            _ => unreachable!(),
         }
     }
 

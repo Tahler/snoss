@@ -3,6 +3,7 @@ use byte_utils;
 
 pub const INSTRUCTION_LEN: usize = 4;
 
+#[derive(Clone, Copy)]
 pub struct Instruction {
     bytes: [u8; INSTRUCTION_LEN],
 }

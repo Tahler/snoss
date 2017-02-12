@@ -15,11 +15,13 @@ impl Cpu {
         }
     }
 
-    pub fn get_reg(&self, addr: usize) -> AccessResult<u16> {
+    pub fn get_reg(&self, addr: u8) -> AccessResult<u16> {
+        let addr = addr as usize;
         self.registers.get(addr).map(|val| *val).ok_or(())
     }
 
-    pub fn set_reg(&mut self, addr: usize, val: u16) -> AccessResult<()> {
+    pub fn set_reg(&mut self, addr: u8, val: u16) -> AccessResult<()> {
+        let addr = addr as usize;
         self.registers.get_mut(addr).map(|curr_val| *curr_val = val).ok_or(())
     }
 }

@@ -1,9 +1,11 @@
-use byte_utils;
+use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{self, Sender, Receiver};
+use std::thread;
 use super::cpu::Cpu;
+use super::exec::{Executor, ExecResult};
 use super::fs::FileSystem;
 use super::instr::InstructionBlock;
-use super::ps::ProcessTable;
-use super::ps::Pcb;
+use super::ps::{Pcb, ProcessTable};
 
 pub mod consts {
     pub const NUM_REGISTERS: usize = 6;
@@ -12,26 +14,59 @@ pub mod consts {
     pub const STACK_LEN: usize = 64;
     pub const MAX_PROCS: usize = 10;
     pub const CORE_DUMP_FILE_NAME: &'static str = "coredump";
+    pub const TIME_SLICE_MS: i64 = 50;
 }
 
 #[derive(Debug)]
 pub struct System {
-    cpu: Cpu,
+    // sched: Scheduler,
+    cpu: Arc<Mutex<Cpu>>,
+    proc_tbl: Arc<Mutex<ProcessTable>>,
+    exit_tx: Sender<u16>,
     fs: FileSystem,
-    proc_tbl: ProcessTable,
 }
 
 impl System {
     pub fn init() -> Self {
-        System {
-            cpu: Cpu::init(),
+        let cpu = Arc::new(Mutex::new(Cpu::init()));
+        let proc_tbl = ProcessTable::new();
+        let proc_tbl = Arc::new(Mutex::new(proc_tbl));
+
+        // Channel that informs threads of process completion.
+        let (exit_tx, exit_rx): (Sender<u16>, Receiver<u16>) = mpsc::channel();
+        let mut sys = System {
+            cpu: cpu,
+            proc_tbl: proc_tbl,
+            exit_tx: exit_tx,
             fs: FileSystem::new("./fs"),
-            proc_tbl: ProcessTable::new(),
-        }
+        };
+        sys.listen_for_exit(exit_rx);
+        sys
+    }
+
+    /// Spawns a "daemon" that removes processes from the process table.
+    fn listen_for_exit(&mut self, exit_rx: Receiver<u16>) -> thread::JoinHandle<()> {
+        let proc_tbl = self.proc_tbl.clone();
+        thread::spawn(move || {
+            loop {
+                let exited_proc_id = exit_rx.recv().unwrap();
+                let mut proc_tbl = proc_tbl.lock().unwrap();
+                proc_tbl.dealloc_pcb(exited_proc_id);
+            }
+        })
     }
 
     pub fn list_files(&self) -> String {
         self.fs.list_files()
+    }
+
+    pub fn kill(&mut self, proc_id: u16) -> Result<(), String> {
+        if self.proc_tbl.lock().unwrap().contains(proc_id) {
+            self.exit_tx.send(proc_id);
+            Ok(())
+        } else {
+            Err(format!("No process with {} exists.", proc_id))
+        }
     }
 
     fn load_instr(&self, file_name: &str) -> Result<InstructionBlock, String> {
@@ -42,233 +77,18 @@ impl System {
         Ok(InstructionBlock::new(&file_bytes)?)
     }
 
-    pub fn exec(&mut self, file_name: &str, dump_each_time: bool) -> Result<String, String> {
+    pub fn exec(&mut self,
+                file_name: &str,
+                use_term: bool)
+                -> Result<thread::JoinHandle<ExecResult>, String> {
         let instr_blk = self.load_instr(file_name)?;
-        let proc_id = self.proc_tbl.alloc_pcb(instr_blk).ok_or("Out of space".to_string())?;
-        let result = {
-            let mut pcb = self.proc_tbl.get_pcb_mut(proc_id);
-            self.cpu.instr_ptr = pcb.get_instr_ptr();
-            let instr_blk = &pcb.instr;
-
-            let mut running = true;
-            let mut output = String::new();
-            let mut last_result: Result<(), ()> = Ok(());
-            while running {
-                use super::instr::INSTRUCTION_LEN;
-                use super::instr::InstructionType::*;
-
-                if dump_each_time {
-                    println!("{}", get_core_dump_str(&self.cpu, &pcb));
-                }
-
-                // Load instr_ptr
-                let instr_ptr = self.cpu.instr_ptr;
-                // Increment instr_ptr
-                self.cpu.instr_ptr += INSTRUCTION_LEN as u16;
-                last_result = if let Ok(instr) = instr_blk.get_instruction_at(instr_ptr as usize) {
-                    // Execute instruction at instr_ptr
-                    match instr.get_type() {
-                        Load => {
-                            let dest_reg = instr.get_reg_1() as usize;
-                            let addr = instr.get_literal_2() as usize;
-                            let stack = &pcb.stack.bytes[..];
-                            if let Ok(loaded_val) = byte_utils::get_u16_at(stack, addr) {
-                                self.cpu.set_reg(dest_reg, loaded_val)
-                            } else {
-                                Err(())
-                            }
-                        }
-                        LoadConstant => {
-                            let dest_reg = instr.get_reg_1() as usize;
-                            let constant = instr.get_literal_2();
-                            self.cpu.set_reg(dest_reg, constant)
-                        }
-                        Store => {
-                            let addr = instr.get_literal_1() as usize;
-                            let src_reg = instr.get_reg_3() as usize;
-                            let stack = &mut pcb.stack.bytes[..];
-                            self.cpu
-                                .get_reg(src_reg)
-                                .and_then(|reg_val| byte_utils::set_u16_at(stack, addr, reg_val))
-                        }
-                        Add => {
-                            let src_reg_a = instr.get_reg_1() as usize;
-                            let src_reg_b = instr.get_reg_2() as usize;
-                            let dest_reg = instr.get_reg_3() as usize;
-                            let res_a = self.cpu.get_reg(src_reg_a);
-                            let res_b = self.cpu.get_reg(src_reg_b);
-                            if let (Ok(a), Ok(b)) = (res_a, res_b) {
-                                self.cpu.set_reg(dest_reg, a + b)
-                            } else {
-                                Err(())
-                            }
-                        }
-                        Subtract => {
-                            let src_reg_a = instr.get_reg_1() as usize;
-                            let src_reg_b = instr.get_reg_2() as usize;
-                            let dest_reg = instr.get_reg_3() as usize;
-                            let res_a = self.cpu.get_reg(src_reg_a);
-                            let res_b = self.cpu.get_reg(src_reg_b);
-                            if let (Ok(a), Ok(b)) = (res_a, res_b) {
-                                self.cpu.set_reg(dest_reg, a - b)
-                            } else {
-                                Err(())
-                            }
-                        }
-                        Multiply => {
-                            let src_reg_a = instr.get_reg_1() as usize;
-                            let src_reg_b = instr.get_reg_2() as usize;
-                            let dest_reg = instr.get_reg_3() as usize;
-                            let res_a = self.cpu.get_reg(src_reg_a);
-                            let res_b = self.cpu.get_reg(src_reg_b);
-                            if let (Ok(a), Ok(b)) = (res_a, res_b) {
-                                self.cpu.set_reg(dest_reg, a * b)
-                            } else {
-                                Err(())
-                            }
-                        }
-                        Divide => {
-                            let src_reg_a = instr.get_reg_1() as usize;
-                            let src_reg_b = instr.get_reg_2() as usize;
-                            let dest_reg = instr.get_reg_3() as usize;
-                            let res_a = self.cpu.get_reg(src_reg_a);
-                            let res_b = self.cpu.get_reg(src_reg_b);
-                            if let (Ok(a), Ok(b)) = (res_a, res_b) {
-                                self.cpu.set_reg(dest_reg, a / b)
-                            } else {
-                                Err(())
-                            }
-                        }
-                        Equal => {
-                            let src_reg_a = instr.get_reg_1() as usize;
-                            let src_reg_b = instr.get_reg_2() as usize;
-                            let dest_reg = instr.get_reg_3() as usize;
-                            let res_a = self.cpu.get_reg(src_reg_a);
-                            let res_b = self.cpu.get_reg(src_reg_b);
-                            if let (Ok(a), Ok(b)) = (res_a, res_b) {
-                                let dest_val = if a == b { 0x01 } else { 0x00 };
-                                self.cpu.set_reg(dest_reg, dest_val)
-                            } else {
-                                Err(())
-                            }
-                        }
-                        Goto => {
-                            let addr = instr.get_literal_1() as usize;
-                            Ok(self.cpu.instr_ptr = addr as u16)
-                        }
-                        GotoIf => {
-                            let reg = instr.get_reg_3() as usize;
-                            if let Ok(eq_val) = self.cpu.get_reg(reg) {
-                                if eq_val != 0 {
-                                    let addr = instr.get_literal_1() as usize;
-                                    self.cpu.instr_ptr = addr as u16;
-                                }
-                                Ok(())
-                            } else {
-                                Err(())
-                            }
-                        }
-                        CharPrint => {
-                            let addr = instr.get_literal_1() as usize;
-                            let stack = &pcb.stack.bytes[..];
-                            stack.get(addr)
-                                .map(|ascii_byte| *ascii_byte as char)
-                                .map(|ascii_char| output.push(ascii_char))
-                                .ok_or(())
-                        }
-                        CharRead => {
-                            use super::super::io_utils;
-                            let addr = instr.get_literal_1() as usize;
-                            let read_byte = io_utils::read_byte_from_stdin();
-                            let mut stack = &mut pcb.stack.bytes[..];
-                            stack.get_mut(addr)
-                                .map(|slot| *slot = read_byte)
-                                .ok_or(())
-                        }
-                        Exit => Ok(running = false),
-                    }
-                } else {
-                    Err(())
-                };
-
-                if last_result.is_err() {
-                    running = false;
-                }
-            }
-
-            match last_result {
-                Ok(_) => Ok(output),
-                Err(_) => {
-                    self.fs.write_str_to_file(consts::CORE_DUMP_FILE_NAME,
-                                              &get_core_dump_str(&self.cpu, &pcb));
-                    Err("Err: segfault".to_string())
-                }
-            }
-        };
-
-        self.proc_tbl.dealloc_pcb(proc_id);
-
-        result
+        let mut proc_tbl = self.proc_tbl.lock().unwrap();
+        let proc_id = proc_tbl.alloc_pcb(instr_blk)
+            .ok_or("Could not allocate another process.".to_string())?;
+        let pcb = proc_tbl.get_pcb(proc_id);
+        let exec = Executor::new(self.cpu.clone(), pcb, use_term);
+        Ok(exec.start(self.exit_tx.clone()))
     }
-
-    // fn core_dump_on_seg_fault() -> RetType {
-    //     unimplemented!();
-    // }
-
-    // fn exec_instr(&mut self, instr: &Instruction) {
-    //     unimplemented!();
-    // }
-
-    // fn to_string(&self) -> String {
-    //     let reg_slice: &[u32] = self.cpu.registers.as_ref();
-    //     format!("{:?}", reg_slice)
-    // }
-
-    // fn load_constant(&mut self, constant: u32, dest_reg: usize) {
-    //     let mut reg_slice = self.cpu.registers.as_mut();
-    //     reg_slice[dest_reg] = constant;
-    // }
-
-    // fn add(&mut self, src_reg_a: usize, src_reg_b: usize, dest_reg: usize) {
-    //     let mut reg_slice = self.cpu.registers.as_mut();
-    //     reg_slice[dest_reg] = reg_slice[src_reg_a] + reg_slice[src_reg_b]
-    // }
-
-    // fn sub(&mut self, src_reg_a: usize, src_reg_b: usize, dest_reg: usize) {
-    //     let mut reg_slice = self.cpu.registers.as_mut();
-    //     reg_slice[dest_reg] = reg_slice[src_reg_a] - reg_slice[src_reg_b];
-    // }
-
-    // fn mul(&mut self, src_reg_a: usize, src_reg_b: usize, dest_reg: usize) {
-    //     let mut reg_slice = self.cpu.registers.as_mut();
-    //     reg_slice[dest_reg] = reg_slice[src_reg_a] * reg_slice[src_reg_b];
-    // }
-
-    // fn div(&mut self, src_reg_a: usize, src_reg_b: usize, dest_reg: usize) {
-    //     let mut reg_slice = self.cpu.registers.as_mut();
-    //     reg_slice[dest_reg] = reg_slice[src_reg_a] / reg_slice[src_reg_b];
-    // }
-
-    // fn eq(&mut self, src_reg_a: usize, src_reg_b: usize, dest_reg: usize) {
-    //     let mut reg_slice = self.cpu.registers.as_mut();
-    //     let dest_val = if reg_slice[src_reg_a] == reg_slice[src_reg_b] {
-    //         0x01
-    //     } else {
-    //         0x00
-    //     };
-    //     reg_slice[dest_reg] = dest_val;
-    // }
-
-    // fn goto(&mut self, addr: u32) {
-    //     self.cpu.instr_ptr = addr;
-    // }
-
-    // fn goto_if(&mut self, addr: usize, reg: usize) {
-    //     let reg_slice = self.cpu.registers.as_ref();
-    //     if reg_slice[reg] == 0 {
-    //         self.cpu.instr_ptr = addr;
-    //     }
-    // }
 }
 
 fn get_core_dump_str(cpu: &Cpu, pcb: &Pcb) -> String {
