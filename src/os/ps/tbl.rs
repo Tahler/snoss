@@ -41,9 +41,9 @@ impl ProcessTable {
 
     /// Returns the Process ID of the allocated PCB.
     /// Returns `None` if there were no more available slots in the table.
-    pub fn alloc_pcb(&mut self, instr: InstructionBlock) -> Option<u16> {
+    pub fn alloc_pcb(&mut self, exe_file_name: String, instr: InstructionBlock) -> Option<u16> {
         self.next_ids.pop_front().map(|proc_id| {
-            let pcb = Pcb::new(proc_id, instr);
+            let pcb = Pcb::new(proc_id, exe_file_name, instr);
             let pcb = Arc::new(Mutex::new(pcb));
             self.procs.insert(proc_id, pcb);
             proc_id

@@ -80,7 +80,6 @@ pid state exe ip  1 2 3 4 5 6
 
 ## Needs
 
-- `ps` to show file name
 - Impl logging level
   - Log time slice (consider chrono crate)
 

@@ -62,15 +62,16 @@ impl System {
 
     pub fn list_procs(&self) -> String {
         // TODO: should include file_name
-        let header = format!("pid\tstate\tip\t1\t2\t3\t4\t5\t6");
+        let header = format!("pid\tstate\tip\t1\t2\t3\t4\t5\t6\texe");
         let proc_tbl = self.proc_tbl.lock().unwrap();
         let procs = proc_tbl.get_running_procs();
         procs.map(|arc_pcb| {
                 let pcb = arc_pcb.lock().unwrap();
-                let Pcb { header: PcbHeader { id, ref status, ref ctx }, .. } = *pcb;
+                let Pcb { header: PcbHeader { id, ref exe_file_name, ref status, ref ctx }, .. } =
+                    *pcb;
                 let ip = ctx.instr_ptr;
                 let reg = ctx.registers;
-                let row = format!("{:?}\t{:?}\t{:?}\t{:?}\t{:?}\t{:?}\t{:?}\t{:?}\t{:?}",
+                let row = format!("{:?}\t{:?}\t{:?}\t{:?}\t{:?}\t{:?}\t{:?}\t{:?}\t{:?}\t{:?}",
                                   id,
                                   status,
                                   ip,
@@ -79,7 +80,8 @@ impl System {
                                   reg[2],
                                   reg[3],
                                   reg[4],
-                                  reg[5]);
+                                  reg[5],
+                                  exe_file_name,);
                 row
             })
             .fold(header + "\n", |acc, row| acc + &row + "\n")
@@ -108,7 +110,7 @@ impl System {
                 -> Result<thread::JoinHandle<ExecResult>, String> {
         let instr_blk = self.load_instr(file_name)?;
         let mut proc_tbl = self.proc_tbl.lock().unwrap();
-        let proc_id = proc_tbl.alloc_pcb(instr_blk)
+        let proc_id = proc_tbl.alloc_pcb(file_name.to_string(), instr_blk)
             .ok_or("Could not allocate another process.".to_string())?;
         let pcb = proc_tbl.get_pcb(proc_id);
         let exec = Executor::new(self.cpu.clone(), pcb, use_term);

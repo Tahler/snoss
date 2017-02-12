@@ -20,6 +20,7 @@ pub struct Pcb {
 #[derive(Debug)]
 pub struct Header {
     pub id: u16,
+    pub exe_file_name: String,
     pub status: Status,
     pub ctx: Context,
 }
@@ -38,10 +39,11 @@ pub struct Stack {
 }
 
 impl Pcb {
-    pub fn new(proc_id: u16, instr: InstructionBlock) -> Pcb {
+    pub fn new(proc_id: u16, exe_file_name: String, instr: InstructionBlock) -> Pcb {
         Pcb {
             header: Header {
                 id: proc_id,
+                exe_file_name: exe_file_name,
                 status: Status::Ready,
                 ctx: Context::new(),
             },
