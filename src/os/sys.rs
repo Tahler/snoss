@@ -14,7 +14,7 @@ pub mod consts {
     pub const STACK_LEN: usize = 64;
     pub const MAX_PROCS: usize = 10;
     pub const CORE_DUMP_FILE_NAME: &'static str = "coredump";
-    pub const TIME_SLICE_MS: i64 = 50;
+    pub const TIME_SLICE_MS: i64 = 1;
 }
 
 #[derive(Debug)]
