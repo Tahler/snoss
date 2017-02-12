@@ -26,7 +26,9 @@ pub struct Header {
 
 #[derive(Debug, PartialEq)]
 pub enum Status {
-    None = 0,
+    Ready,
+    Blocked,
+    Executing,
 }
 
 type Context = Cpu;
@@ -40,7 +42,7 @@ impl Pcb {
         Pcb {
             header: Header {
                 id: proc_id,
-                status: Status::None,
+                status: Status::Ready,
                 ctx: Context::new(),
             },
             stack: Stack::new(),

@@ -7,7 +7,7 @@ use time_utils;
 use os::consts::TIME_SLICE_MS;
 use super::cpu::Cpu;
 use super::instr::Instruction;
-use super::ps::Pcb;
+use super::ps::{Pcb, Status as ProcessStatus};
 
 /// Responsible for taking control of the CPU.
 /// Each PCB should be "wrapped" with an executor to make it execute.
@@ -49,13 +49,15 @@ impl Executor {
                     let mut cpu = self.cpu.lock().unwrap();
                     let mut pcb = self.pcb.lock().unwrap();
                     load_cpu_ctx(&mut cpu, &pcb);
+                    // Execute
+                    pcb.set_status(ProcessStatus::Executing);
                     while time_utils::since(&last_time_slice).num_milliseconds() <
                           TIME_SLICE_MS && result == ExecResult::Success {
                         result = exec_once(&mut cpu, &mut pcb, self.use_term);
                     }
                     // END TIME SLICE
-                    // TODO: set pcb status
                     save_cpu_ctx(&cpu, &mut pcb);
+                    pcb.set_status(ProcessStatus::Blocked);
                 }
                 thread::yield_now();
             }
