@@ -1,7 +1,7 @@
 #[derive(Debug)]
 pub struct CommandWithArgs {
     pub cmd: Command,
-    pub args: Option<Vec<String>>,
+    pub args: Vec<String>,
 }
 
 impl CommandWithArgs {
@@ -25,7 +25,7 @@ impl CommandWithArgs {
 #[derive(Debug)]
 pub enum Command {
     ListFiles,
-    ProcessStatus,
+    ListProcesses,
     Execute,
     ExecuteAsync,
     Kill,
@@ -38,7 +38,7 @@ fn extract_cmd(tokens: &Vec<&str>) -> Option<Command> {
     let cmd = tokens[0];
     match cmd {
         "ls" => Some(ListFiles),
-        "ps" => Some(ProcessStatus),
+        "ps" => Some(ListProcesses),
         "exec" => {
             if *tokens.last().unwrap() == "&" {
                 Some(Execute)
@@ -52,16 +52,15 @@ fn extract_cmd(tokens: &Vec<&str>) -> Option<Command> {
     }
 }
 
-fn extract_args(tokens: &Vec<&str>) -> Option<Vec<String>> {
+fn extract_args(tokens: &Vec<&str>) -> Vec<String> {
     if tokens.len() == 0 {
-        None
+        Vec::new()
     } else {
         let range = if *tokens.last().unwrap() == "&" {
             1..(tokens.len() - 1)
         } else {
             1..(tokens.len())
         };
-        let args = tokens[range].iter().map(|ref_str| ref_str.to_string()).collect();
-        Some(args)
+        tokens[range].iter().map(|ref_str| ref_str.to_string()).collect()
     }
 }

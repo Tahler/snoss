@@ -29,12 +29,12 @@ impl Shell {
             match *cmd {
                 Command::Exit => return Ok(()),
                 Command::Execute => {
-                    let file = &cmd_args.args.unwrap()[0];
+                    let file = &cmd_args.args[0];
                     let handle = self.system.exec(file, true)?;
                     handle.join();
                 }
                 Command::ExecuteAsync => {
-                    let file = &cmd_args.args.unwrap()[0];
+                    let file = &cmd_args.args[0];
                     self.system.exec(file, false);
                 }
                 _ => {
@@ -54,9 +54,14 @@ impl Shell {
 
         match command.cmd {
             ListFiles => Ok(self.system.list_files()),
-            ProcessStatus => Ok("Not yet implemented.".to_string()),
+            ListProcesses => Ok(self.system.list_procs()),
             // ExecuteWithInfo => self.system.exec(&command.args[0], true),
-            Kill => Ok("Not yet implemented.".to_string()),
+            Kill => {
+                let pid = &command.args[0];
+                let pid = pid.parse::<u16>().unwrap();
+                self.system.kill(pid)?;
+                Ok(format!("Killed process {}", pid))
+            }
             Exit => Ok("Bye!".to_string()),
             _ => unreachable!(),
         }
