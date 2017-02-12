@@ -45,7 +45,7 @@ fn extract_cmd(tokens: &Vec<&str>) -> Option<Command> {
             } else {
                 Some(Execute)
             }
-        },
+        }
         "kill" => Some(Kill),
         "exit" => Some(Exit),
         _ => None,

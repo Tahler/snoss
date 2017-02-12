@@ -81,7 +81,7 @@ impl System {
                                   reg[3],
                                   reg[4],
                                   reg[5],
-                                  exe_file_name,);
+                                  exe_file_name);
                 row
             })
             .fold(header + "\n", |acc, row| acc + &row + "\n")
