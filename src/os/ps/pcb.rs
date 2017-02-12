@@ -12,17 +12,13 @@ pub const INSTRUCTION_BLK_LEN: usize = 256 * INSTRUCTION_LEN;
 
 #[derive(Debug)]
 pub struct Pcb {
-    header: Header,
+    pub header: Header,
     pub stack: Stack,
     pub instr: InstructionBlock,
 }
 
-// TODO: is this automatically impl?
-// unsafe impl Send for Pcb {
-// }
-
 #[derive(Debug)]
-struct Header {
+pub struct Header {
     pub id: u16,
     pub status: Status,
     pub ctx: Context,

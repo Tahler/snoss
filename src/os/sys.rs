@@ -5,7 +5,7 @@ use super::cpu::Cpu;
 use super::exec::{Executor, ExecResult};
 use super::fs::FileSystem;
 use super::instr::InstructionBlock;
-use super::ps::{Pcb, ProcessTable};
+use super::ps::{Pcb, Header as PcbHeader, ProcessTable};
 
 pub mod consts {
     pub const NUM_REGISTERS: usize = 6;
@@ -58,6 +58,31 @@ impl System {
 
     pub fn list_files(&self) -> String {
         self.fs.list_files()
+    }
+
+    pub fn list_procs(&self) -> String {
+        // TODO: should include file_name
+        let header = format!("pid\tstate\tip\t1\t2\t3\t4\t5\t6");
+        let proc_tbl = self.proc_tbl.lock().unwrap();
+        let procs = proc_tbl.get_running_procs();
+        procs.map(|arc_pcb| {
+                let pcb = arc_pcb.lock().unwrap();
+                let Pcb { header: PcbHeader { id, ref status, ref ctx }, .. } = *pcb;
+                let ip = ctx.instr_ptr;
+                let reg = ctx.registers;
+                let row = format!("{:?}\t{:?}\t{:?}\t{:?}\t{:?}\t{:?}\t{:?}\t{:?}\t{:?}",
+                                  id,
+                                  status,
+                                  ip,
+                                  reg[0],
+                                  reg[1],
+                                  reg[2],
+                                  reg[3],
+                                  reg[4],
+                                  reg[5]);
+                row
+            })
+            .fold(header + "\n", |acc, row| acc + &row + "\n")
     }
 
     pub fn kill(&mut self, proc_id: u16) -> Result<(), String> {
