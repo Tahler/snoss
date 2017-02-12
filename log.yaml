@@ -1,0 +1,14 @@
+appenders:
+  stdout:
+    kind: console
+  # An appender named "requests" that writes to a file with a custom pattern encoder
+  kernel:
+    kind: file
+    path: "syslog"
+    encoder:
+      pattern: "{d} [{l}] - {m}{n}"
+
+root:
+  level: debug
+  appenders:
+    - kernel

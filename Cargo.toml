@@ -5,4 +5,6 @@ authors = ["Tyler Berry <tyler@berryac.com>"]
 
 [dependencies]
 enum_primitive = "0.1.1"
+log = "0.3.6"
+log4rs = "0.6.1"
 time = "0.1.36"

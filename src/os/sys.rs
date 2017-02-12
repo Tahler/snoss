@@ -61,7 +61,6 @@ impl System {
     }
 
     pub fn list_procs(&self) -> String {
-        // TODO: should include file_name
         let header = format!("pid\tstate\tip\t1\t2\t3\t4\t5\t6\texe");
         let proc_tbl = self.proc_tbl.lock().unwrap();
         let procs = proc_tbl.get_running_procs();

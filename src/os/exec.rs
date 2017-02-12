@@ -37,6 +37,7 @@ impl Executor {
 
     pub fn start(self, kill_tx: Sender<u16>) -> thread::JoinHandle<ExecResult> {
         thread::spawn(move || {
+            let proc_id = self.get_proc_id();
             let mut result = ExecResult::Success;
             while result == ExecResult::Success {
                 {
@@ -48,6 +49,7 @@ impl Executor {
                     thread::sleep(Duration::new(0, 1));
                     let mut cpu = self.cpu.lock().unwrap();
                     let mut pcb = self.pcb.lock().unwrap();
+                    debug!("Proc {}: begin time slice", proc_id);
                     load_cpu_ctx(&mut cpu, &pcb);
                     // Execute
                     pcb.set_status(ProcessStatus::Executing);
@@ -58,10 +60,10 @@ impl Executor {
                     // END TIME SLICE
                     save_cpu_ctx(&cpu, &mut pcb);
                     pcb.set_status(ProcessStatus::Blocked);
+                    debug!("Proc {}: end time slice", proc_id);
                 }
                 thread::yield_now();
             }
-            let proc_id = self.get_proc_id();
             kill_tx.send(proc_id).unwrap();
             result
         })

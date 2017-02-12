@@ -3,6 +3,9 @@
 
 #[macro_use]
 extern crate enum_primitive;
+#[macro_use]
+extern crate log;
+extern crate log4rs;
 extern crate time;
 
 mod byte_utils;
@@ -17,6 +20,11 @@ use sh::Shell;
 const PROMPT: &'static str = "> ";
 
 fn main() {
+    // Init logging
+    log4rs::init_file("log.yaml", Default::default()).unwrap();
+
+    info!("Booting...");
+
     let system = System::init();
 
     let prompt = PROMPT.to_string();
@@ -26,4 +34,5 @@ fn main() {
     if result.is_err() {
         println!("Err: {:?}", result.err().unwrap());
     }
+    info!("Shutting down...");
 }
