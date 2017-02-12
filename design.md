@@ -74,14 +74,11 @@ pid state exe ip  1 2 3 4 5 6
 ## Forking
 
 1. Shell receives `exec FILE`
-1. Shell calls sys.exec(file), attaching it's stdin and stdout unless `&` was present
-1. System
-1. System creates an executor
-
-## Needs
-
-- Impl logging level
-  - Log time slice (consider chrono crate)
+1. Shell calls sys.exec(file), attaching it's stdin and stdout unless `&` was
+   present
+1. System creates an executor and starts it in a different thread
+1. Each executor is trying to lock the cpu and pcb mutexes, then executes for a
+   time slice
 
 ## Wants
 
